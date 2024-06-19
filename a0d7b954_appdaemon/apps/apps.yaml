@@ -1,0 +1,276 @@
+---
+# -----------------------------------------------------
+# General controlling and diagnostic apps
+# -----------------------------------------------------
+# Check the sun down/rise time and print to log
+sun_state_check:
+  module: sun_checker
+  class: SunChecker
+
+# Heart beat controller including
+# time stamp distribution
+heart_beat_ctr:
+  module: heart_beat
+  class: HeartBeat
+  period: 30
+
+# -----------------------------------------------------
+# Orientation Light Controlling
+# -----------------------------------------------------
+# Carport orientation light
+carport_light:
+  module: carport_light
+  class: CarportLight
+  sensor:
+    - switch.dev408
+    - binary_sensor.dev62_motion
+  entity_ctrl:
+    - light.dev408
+    - light.dev62
+  delay: 60
+
+# Garden House orientation light
+garden_house_light:
+  module: orientation_light_new
+  class: OrientLightNew
+  sensor: binary_sensor.dev63_motion
+  entity_ctrl: light.dev63
+  delay: 60
+  sunrec: True
+
+# Front door orientation light for front lights
+front_door_light:
+  module: orientation_light_new
+  class: OrientLightNew
+  sensor: binary_sensor.dev401_switch1
+  entity_ctrl: switch.dev401_relay1
+  delay: 60
+  sunrec: True
+
+# Front door orientation light for bottom and walk
+front_door_light_bottom:
+  module: orientation_light_new
+  class: OrientLightNew
+  sensor: binary_sensor.dev401_switch1
+  entity_ctrl: switch.dev401_relay2
+  delay: 60
+  sunrec: True
+
+# Inside carport orientation light
+orient_carp_inside:
+  module: orientation_light_new
+  class: OrientLightNew
+  sensor: binary_sensor.dev71_motion
+  entity_ctrl: light.dev71
+  delay: 20
+  sunrec: True
+
+# Utility room orientation light
+orient_util:
+  module: orientation_light_new
+  class: OrientLightNew
+  sensor: binary_sensor.sonoff_move1
+  entity_ctrl: switch.lidl_relay6
+  delay: 20
+  sunrec: True
+
+# -----------------------------------------------------
+# Ambient light controller
+# -----------------------------------------------------
+# Ambient light living room
+ambi_light_living:
+  module: ambient_light
+  class: AmbientLight
+  offset: -18
+  entity_ctrl: light.dev04
+
+# Ambient light floor garden lights
+ambi_light_garden7:
+  module: ambient_light
+  class: AmbientLight
+  offset: -21
+  entity_ctrl: light.dev50_r7
+
+# Ambient light hall room, ground floor:
+ambi_light_hall_gnd:
+  module: ambient_light
+  class: AmbientLight
+  offset: 43
+  entity_ctrl: switch.lidl_relay3
+
+#ambi_light_door:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: 43
+#  entity_ctrl: switch.tasmota2
+
+#christmas_light_door:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: 43
+#  entity_ctrl: switch.tasmota3
+
+#christmas_light_garden:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: 43
+#  entity_ctrl: light.dev01
+
+# Ambient light dining room
+#light_dining_room:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: 43
+#  entity_ctrl: switch.lidl_power4
+
+# -----------------------------------------------------
+# Neo Combined Controller
+# -----------------------------------------------------
+# Hall room first floor ambient and motion controller
+neo_hall_first:
+  module: neo_combined
+  class: NeoCombined
+  sensor: binary_sensor.dev400_switch1
+  entity_ctrl: light.dev400
+
+# Living Room ambient and motion controller
+neo_living:
+  module: neo_combined
+  class: NeoCombined
+  sensor: binary_sensor.dev406_switch1
+  entity_ctrl: light.dev406
+
+# Hall room ground floor ambient and motion controller
+neo_hall_ground:
+  module: neo_combined
+  class: NeoCombined
+  sensor: binary_sensor.dev407_switch1
+  entity_ctrl: light.dev407
+
+# -----------------------------------------------------
+# Daylight controller
+# -----------------------------------------------------
+# Garden fountain - disabled due to winter time
+#daylight_control:
+#  module: daylight_runner
+#  class: DayLightRunner
+#  entity_ctrl:
+#    - light.dev50_r2
+
+# -----------------------------------------------------
+# Alarm controller
+# -----------------------------------------------------
+#alarm_control:
+#  module: alarm_controller
+#  class: AlarmCtrl
+#  alarm_offset: 5
+#  away_listener:
+#    - binary_sensor.switch1_5
+#    - binary_sensor.dev71_motion
+#    - binary_sensor.switch1_4
+#    - binary_sensor.switch1_6
+#    - binary_sensor.lidl_window_kitchen
+#    - binary_sensor.ewelink_move1
+#  night_listener:
+#    - binary_sensor.switch1_5
+#    - binary_sensor.dev71_motion
+#    - binary_sensor.switch1_4
+#    - binary_sensor.switch1_6
+#    - binary_sensor.lidl_window_kitchen
+#    - binary_sensor.ewelink_move1
+
+# -----------------------------------------------------
+# Zigbee switch controller
+# -----------------------------------------------------
+# Emergency button lights
+switch_emergency:
+  module: switch_light
+  class: SwitchLight
+  switch: switch.lidl_button2
+  entity_ctrl:
+    # Living Room entities
+    - light.dev04
+    - light.dev80_l1
+    - light.dev80_l3
+    - light.dev80_l2
+    - light.dev406
+    # Garden entities
+    - light.dev50_r5
+    - light.dev50_r7
+    - light.dev50_r3
+    - light.dev50_r6
+    - light.dev50_r1
+    - light.dev50_r4
+    # Carport entities
+    - switch.dev408
+    - light.dev62
+    # Garden House
+    - light.dev63
+    # Hall Room entities
+    - light.dev400
+    - light.dev407
+    - switch.lidl_relay3
+    # Main Entry entities
+    - switch.dev401_relay1
+    - switch.dev401_relay2
+    - switch.dev401_relay3
+    - switch.dev401_relay4
+    # Kitchen entities
+    #- switch.lidl_power4
+    # Utility room entities
+    - switch.lidl_relay6
+
+# Zigbee switch for office work space
+switch_light_work_ctr:
+  module: switch_light
+  class: SwitchLight
+  switch: switch.lidl_switch1
+  entity_ctrl:
+    - switch.lidl_power6
+
+# Extract Hood Power Controller
+ext_hood_ctrl:
+  module: extract_hood_ctrl
+  class: ExtractHoodCtrl
+  sensor: binary_sensor.lidl_window_kitchen
+  entity_ctrl: switch.lidl_power4
+  batt_sensor: sensor.lidl_window1_batt
+
+# -----------------------------------------------------
+# Night controller
+# -----------------------------------------------------
+nightly_reset:
+  module: night_reset
+  class: NightReset
+  lights:
+    # Living Room entities
+    - light.dev04
+    - light.dev80_l1
+    - light.dev80_l3
+    - light.dev80_l2
+    - light.dev406
+    # Garden entities
+    - light.dev50_r5
+    - light.dev50_r7
+    - light.dev50_r3
+    - light.dev50_r6
+    - light.dev50_r1
+    - light.dev50_r4
+    # Carport entities
+    - switch.dev408
+    - light.dev62
+    # Garden House
+    - light.dev63
+    # Hall Room entities
+    - light.dev400
+    - light.dev407
+    - switch.lidl_relay3
+    # Main Entry entities
+    - switch.dev401_relay1
+    - switch.dev401_relay2
+    - switch.dev401_relay3
+    - switch.dev401_relay4
+    # Kitchen entities
+    #- switch.lidl_power4
+    # Utility room entities
+    - switch.lidl_relay6
