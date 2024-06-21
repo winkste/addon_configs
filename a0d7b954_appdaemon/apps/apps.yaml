@@ -95,7 +95,7 @@ ambi_light_garden7:
 ambi_light_hall_gnd:
   module: ambient_light
   class: AmbientLight
-  offset: 43
+  offset: -20
   entity_ctrl: switch.lidl_relay3
 
 #ambi_light_door:
@@ -232,7 +232,7 @@ switch_light_work_ctr:
 ext_hood_ctrl:
   module: extract_hood_ctrl
   class: ExtractHoodCtrl
-  sensor: binary_sensor.lidl_window_kitchen
+  sensor: binary_sensor.lidl_window1
   entity_ctrl: switch.lidl_power4
   batt_sensor: sensor.lidl_window1_batt
 
