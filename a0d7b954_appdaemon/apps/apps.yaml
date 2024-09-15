@@ -233,7 +233,7 @@ ext_hood_ctrl:
   module: extract_hood_ctrl
   class: ExtractHoodCtrl
   sensor: binary_sensor.lidl_window1
-  entity_ctrl: switch.lidl_power4
+  entity_ctrl: switch.lidl_relay5
   batt_sensor: sensor.lidl_window1_batt
 
 # -----------------------------------------------------
