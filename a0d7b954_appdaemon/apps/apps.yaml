@@ -22,7 +22,7 @@ carport_light:
   module: carport_light
   class: CarportLight
   sensor:
-    - switch.dev408
+    - binary_sensor.dev408_switch1
     - binary_sensor.dev62_motion
   entity_ctrl:
     - light.dev408
@@ -90,6 +90,13 @@ ambi_light_garden7:
   class: AmbientLight
   offset: -21
   entity_ctrl: light.dev50_r7
+
+# Ambient light wall barbeque house front lights
+ambi_light_garden5:
+  module: ambient_light
+  class: AmbientLight
+  offset: -25
+  entity_ctrl: light.dev50_r5
 
 # Ambient light hall room, ground floor:
 ambi_light_hall_gnd:
