@@ -111,11 +111,11 @@ ambi_light_hall_gnd:
 #  offset: 43
 #  entity_ctrl: switch.tasmota2
 
-#christmas_light_door:
-#  module: ambient_light
-#  class: AmbientLight
-#  offset: 43
-#  entity_ctrl: switch.tasmota3
+christmas_light_door:
+  module: ambient_light
+  class: AmbientLight
+  offset: 43
+  entity_ctrl: switch.dev401_relay3
 
 #christmas_light_garden:
 #  module: ambient_light
