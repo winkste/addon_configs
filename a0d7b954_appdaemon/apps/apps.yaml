@@ -114,7 +114,7 @@ ambi_light_hall_gnd:
 christmas_light_door:
   module: ambient_light
   class: AmbientLight
-  offset: 43
+  offset: 15
   entity_ctrl: switch.dev401_relay3
 
 #christmas_light_garden:
@@ -124,11 +124,11 @@ christmas_light_door:
 #  entity_ctrl: light.dev01
 
 # Ambient light dining room
-#light_dining_room:
-#  module: ambient_light
-#  class: AmbientLight
-#  offset: 43
-#  entity_ctrl: switch.lidl_power4
+light_dining_room:
+  module: ambient_light
+  class: AmbientLight
+  offset: 20
+  entity_ctrl: switch.lidl_power4
 
 # -----------------------------------------------------
 # Neo Combined Controller
@@ -231,9 +231,9 @@ switch_emergency:
 switch_light_work_ctr:
   module: switch_light
   class: SwitchLight
-  switch: switch.lidl_switch1
+  switch: switch.lidl_button1
   entity_ctrl:
-    - switch.lidl_power6
+    - switch.lidl_relay1
 
 # Extract Hood Power Controller
 ext_hood_ctrl:
