@@ -9,10 +9,10 @@ sun_state_check:
 
 # Heart beat controller including
 # time stamp distribution
-heart_beat_ctr:
-  module: heart_beat
-  class: HeartBeat
-  period: 30
+#heart_beat_ctr:
+#  module: heart_beat
+#  class: HeartBeat
+#  period: 30
 
 # -----------------------------------------------------
 # Orientation Light Controlling
@@ -92,11 +92,18 @@ ambi_light_garden7:
   entity_ctrl: light.dev50_r7
 
 # Ambient light wall barbeque house front lights
-ambi_light_garden5:
+#ambi_light_garden5:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: -25
+#  entity_ctrl: light.dev50_r5
+
+# Ambient light wall barbeque house bulbs
+ambi_light_garden8:
   module: ambient_light
   class: AmbientLight
   offset: -25
-  entity_ctrl: light.dev50_r5
+  entity_ctrl: light.dev50_r8
 
 # Ambient light hall room, ground floor:
 ambi_light_hall_gnd:
@@ -158,11 +165,11 @@ neo_hall_ground:
 # Daylight controller
 # -----------------------------------------------------
 # Garden fountain - disabled due to winter time
-#daylight_control:
-#  module: daylight_runner
-#  class: DayLightRunner
-#  entity_ctrl:
-#    - light.dev50_r2
+daylight_control:
+  module: daylight_runner
+  class: DayLightRunner
+  entity_ctrl:
+    - light.dev50_r2
 
 # -----------------------------------------------------
 # Alarm controller

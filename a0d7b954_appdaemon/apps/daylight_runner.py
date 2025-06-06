@@ -37,17 +37,13 @@ class DayLightRunner(hass.Hass):
     """Daylight activated devices.
     """
 
-    def __init__(self, ad: AppDaemon, name, logging, args, config, app_config, global_vars):
-        """This is the constructor initialize function for this app class
+    def initialize(self):
+        """This function initializes the appdeamon task.
         """
-        super().__init__(ad, name, logging, args, config, app_config, global_vars)
         self.sunrise_delay_in_min = 60
         self.sunset_delay_pre_time_in_min = 60
         self.entity_ctrl = None
 
-    def initialize(self):
-        """This function initializes the appdeamon task.
-        """
         if "entity_ctrl" in self.args:
             self.entity_ctrl = self.args["entity_ctrl"]
             # subscribe callback to sunset event

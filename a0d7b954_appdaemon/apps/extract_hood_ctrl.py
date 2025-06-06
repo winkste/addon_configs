@@ -47,21 +47,15 @@ class ExtractHoodCtrl(hass.Hass):
     """Extract hood window control
     """
 
-    def __init__(self, ad: AppDaemon, name, logging, args, config, app_config, global_vars):
-        """This is the constructor initialize function for this app class
+    def initialize(self):
+        """This function initializes the appdeamon task.
         """
-        super().__init__(ad, name, logging, args, config, app_config, global_vars)
         self.window_sensor = None
         self.power_plug = None
         self.batt_sensor = None
         self.window_control_enabled = False
         self.battery_fill_state = 0
         self.MIN_BATT_FILL_STATE = 10
-
-
-    def initialize(self):
-        """This function initializes the appdeamon task.
-        """
         # Input Parameter Handling
         # Check if sensor is available and register callbacks for state changes
         if "sensor" in self.args:
@@ -86,7 +80,7 @@ class ExtractHoodCtrl(hass.Hass):
             # register callback for battery change updates
             self.listen_state(self.batt_change_callback, self.batt_sensor)
             # read initial state and based on the fill rate enable control
-            self.battery_fill_state = int(self.get_state(self.batt_sensor))
+            self.battery_fill_state = float(self.get_state(self.batt_sensor))
             self.log(f"Initial Batt state: {self.battery_fill_state}%")
             if self.battery_fill_state > self.MIN_BATT_FILL_STATE:
                 self.window_control_enabled = True
@@ -128,7 +122,7 @@ class ExtractHoodCtrl(hass.Hass):
         """This function is a callback on battery state filling
         """
         self.log(f"Battery changed: {self.batt_sensor}. Old: {int(old)} -> New: {int(new)}")
-        self.battery_fill_state = int(new)
+        self.battery_fill_state = float(new)
         if self.battery_fill_state < self.MIN_BATT_FILL_STATE: # validate battery level
             # battery level to low, turn on the power plug and disable window control
             self.window_control_enabled = False

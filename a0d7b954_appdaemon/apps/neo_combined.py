@@ -61,10 +61,9 @@ class NeoCombined(hass.Hass):
     """Neo RGB light combined ambient and motion light
     """
 
-    def __init__(self, ad: AppDaemon, name, logging, args, config, app_config, global_vars):
-        """This is the constructor initialize function for this app class
+    def initialize(self):
+        """This function initializes the appdeamon task.
         """
-        super().__init__(ad, name, logging, args, config, app_config, global_vars)
         self.ambi_timer = None
         self.motion_sensor = None
         self.entity_ctrl = None
@@ -73,10 +72,6 @@ class NeoCombined(hass.Hass):
         self.sunset_offset = -15
         self.brightness_motion = 125
         self.brightness_ambi = 125
-
-    def initialize(self):
-        """This function initializes the appdeamon task.
-        """
         if "sensor" in self.args:
             self.motion_sensor = self.args["sensor"]
             # subscribe callbacks to sensor state events

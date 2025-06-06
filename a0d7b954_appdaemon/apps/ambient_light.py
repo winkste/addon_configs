@@ -39,20 +39,14 @@ import appdaemon.plugins.hass.hassapi as hass
 class AmbientLight(hass.Hass):
     """Ambient light control class
     """
-
-    def __init__(self, ad: AppDaemon, name, logging, args, config, app_config, global_vars):
-        """Class constructor
+    def initialize(self):
+        """App initialization function
         """
-        super().__init__(ad, name, logging, args, config, app_config, global_vars)
-
         self.sunset_offset = -30
         self.timer_handle = None
         self.switch = None
         self.entity_ctrl = None
 
-    def initialize(self):
-        """App initialization function
-        """
         if "offset" in self.args:
             self.sunset_offset = self.args["offset"]
         else:

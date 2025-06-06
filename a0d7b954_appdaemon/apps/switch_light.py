@@ -35,16 +35,13 @@ import appdaemon.plugins.hass.hassapi as hass
 class SwitchLight(hass.Hass):
     """Switch Light class for apps
     """
-    def __init__(self, ad: AppDaemon, name, logging, args, config, app_config, global_vars):
-        """Init function for class constructor
-        """
-        super().__init__(ad, name, logging, args, config, app_config, global_vars)     
-        self.switch = None
-        self.entity_ctrl = None
 
     def initialize(self):
         """Initialize function for app
         """
+        self.switch = None
+        self.entity_ctrl = None
+        
         if "switch" not in self.args:
             self.log("switch_light - no switch detected...")
         elif "entity_ctrl" not in self.args:
