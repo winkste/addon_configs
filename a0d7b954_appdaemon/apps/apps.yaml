@@ -92,11 +92,11 @@ ambi_light_garden7:
   entity_ctrl: light.dev50_r7
 
 # Ambient light wall barbeque house front lights
-#ambi_light_garden5:
-#  module: ambient_light
-#  class: AmbientLight
-#  offset: -25
-#  entity_ctrl: light.dev50_r5
+ambi_light_garden5:
+  module: ambient_light
+  class: AmbientLight
+  offset: -15
+  entity_ctrl: light.dev50_r5
 
 # Ambient light wall barbeque house bulbs
 ambi_light_garden8:
@@ -109,20 +109,41 @@ ambi_light_garden8:
 ambi_light_hall_gnd:
   module: ambient_light
   class: AmbientLight
-  offset: -20
+  offset: -30
   entity_ctrl: switch.lidl_relay3
 
+# Ambient light front door
 #ambi_light_door:
 #  module: ambient_light
 #  class: AmbientLight
-#  offset: 43
-#  entity_ctrl: switch.tasmota2
+#  offset: -20
+#  entity_ctrl: switch.dev401_relay1
 
+# christmas light
 christmas_light_door:
   module: ambient_light
   class: AmbientLight
-  offset: 15
+  offset: -10
   entity_ctrl: switch.dev401_relay3
+
+# Ambient light kitchen
+ambi_light_kitchen1:
+  module: ambient_light
+  class: AmbientLight
+  offset: -20
+  entity_ctrl: light.shellyplusrgbwpm_device1_light_0
+
+ambi_light_kitchen2:
+  module: ambient_light
+  class: AmbientLight
+  offset: -20
+  entity_ctrl: light.shellyplusrgbwpm_device1_light_1
+
+ambi_light_kitchen3:
+  module: ambient_light
+  class: AmbientLight
+  offset: -20
+  entity_ctrl: light.shellyplusrgbwpm_device2_light_0
 
 #christmas_light_garden:
 #  module: ambient_light
@@ -135,7 +156,7 @@ light_dining_room:
   module: ambient_light
   class: AmbientLight
   offset: 20
-  entity_ctrl: switch.lidl_power4
+  entity_ctrl: switch.lidl_relay4
 
 # -----------------------------------------------------
 # Neo Combined Controller
@@ -230,9 +251,17 @@ switch_emergency:
     - switch.dev401_relay3
     - switch.dev401_relay4
     # Kitchen entities
-    #- switch.lidl_power4
+    - switch.lidl_relay4
     # Utility room entities
     - switch.lidl_relay6
+    - light.shellyplusrgbwpm_device1_light_0
+    - light.shellyplusrgbwpm_device1_light_1
+    - light.shellyplusrgbwpm_device1_light_2
+    - light.shellyplusrgbwpm_device1_light_3
+    - light.shellyplusrgbwpm_device2_light_0
+    - light.shellyplusrgbwpm_device2_light_1
+    - light.shellyplusrgbwpm_device2_light_2
+    - light.shellyplusrgbwpm_device2_light_3
 
 # Zigbee switch for office work space
 switch_light_work_ctr:
@@ -285,6 +314,14 @@ nightly_reset:
     - switch.dev401_relay3
     - switch.dev401_relay4
     # Kitchen entities
-    #- switch.lidl_power4
+    - switch.lidl_relay4
     # Utility room entities
     - switch.lidl_relay6
+    - light.shellyplusrgbwpm_device1_light_0
+    - light.shellyplusrgbwpm_device1_light_1
+    - light.shellyplusrgbwpm_device1_light_2
+    - light.shellyplusrgbwpm_device1_light_3
+    - light.shellyplusrgbwpm_device2_light_0
+    - light.shellyplusrgbwpm_device2_light_1
+    - light.shellyplusrgbwpm_device2_light_2
+    - light.shellyplusrgbwpm_device2_light_3
