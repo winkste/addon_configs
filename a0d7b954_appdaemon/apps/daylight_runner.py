@@ -40,8 +40,8 @@ class DayLightRunner(hass.Hass):
     def initialize(self):
         """This function initializes the appdeamon task.
         """
-        self.sunrise_delay_in_min = 60
-        self.sunset_delay_pre_time_in_min = 60
+        self.sunrise_delay_in_min = 0
+        self.sunset_delay_pre_time_in_min = 0
         self.entity_ctrl = None
 
         if "entity_ctrl" in self.args:
