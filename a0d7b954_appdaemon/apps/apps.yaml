@@ -82,7 +82,7 @@ ambi_light_living:
   module: ambient_light
   class: AmbientLight
   offset: -18
-  entity_ctrl: light.dev04
+  entity_ctrl: switch.plugsg3_7
 
 # Ambient light floor garden lights
 ambi_light_garden7:
@@ -224,7 +224,7 @@ switch_emergency:
   switch: switch.lidl_button2
   entity_ctrl:
     # Living Room entities
-    - light.dev04
+    - switch.plugsg3_7
     - light.dev80_l1
     - light.dev80_l3
     - light.dev80_l2
@@ -287,7 +287,7 @@ nightly_reset:
   class: NightReset
   lights:
     # Living Room entities
-    - light.dev04
+    - switch.plugsg3_7
     - light.dev80_l1
     - light.dev80_l3
     - light.dev80_l2
