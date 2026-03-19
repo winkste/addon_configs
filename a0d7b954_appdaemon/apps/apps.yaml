@@ -191,7 +191,20 @@ daylight_control:
   class: DayLightRunner
   entity_ctrl:
     - light.dev50_r2
-
+# -----------------------------------------------------
+# Garden irrigation controller
+# -----------------------------------------------------
+garden_irrigation:
+  module: garden_logic
+  class: GardenIrrigation
+  valve_1: switch.shellypro2_1_2
+  valve_2: switch.shellypro2_1_3
+  input_v1: binary_sensor.shellypro2_1_1_eingang_0
+  input_v2: binary_sensor.shellypro2_1_1_eingang_1
+  mode_entity: input_select.irrigation_mode
+  duration_entity: input_number.irrigation_duration
+  start_1_entity: input_datetime.irrigation_start_v1
+  start_2_entity: input_datetime.irrigation_start_v2
 # -----------------------------------------------------
 # Alarm controller
 # -----------------------------------------------------
