@@ -88,8 +88,8 @@ class AmbientLight(hass.Hass):
                 self.turn_on_lights()
             else:
                 self.turn_off_lights()
-            else:
-                self.log(f"Error with entity: {light}.")
+        else:
+            self.log(f"Error with entity: {light}.")
 
 
     def turn_off_lights(self):

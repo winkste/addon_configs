@@ -195,7 +195,7 @@ daylight_control:
 # Garden irrigation controller
 # -----------------------------------------------------
 garden_irrigation:
-  module: garden_logic
+  module: garden_irrigation
   class: GardenIrrigation
   valve_1: switch.shellypro2_1_2
   valve_2: switch.shellypro2_1_3
