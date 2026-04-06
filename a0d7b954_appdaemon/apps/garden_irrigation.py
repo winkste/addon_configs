@@ -8,14 +8,6 @@ Features:
 - Manual toggle via Shelly hardware inputs (pos/neg edge).
 - App-Protection: Auto-off timer if started via HA App/UI.
 - Countdown: Real-time remaining time updates in HA sensors.
-
-Args:
-    valve_1/2: Entity IDs of the Shelly relays (switch)
-    input_1/2: Entity IDs of the Shelly inputs (binary_sensor)
-    mode_entity: input_select for Automatic/Manual
-    duration_entity: input_number for duration in minutes
-    start_1/2_entity: input_datetime for start times
-    sensor_remaining_1/2: Entity IDs for the countdown sensors (e.g. sensor.irrigation_v1_timer)
 """
 
 import appdaemon.plugins.hass.hassapi as hass
@@ -74,7 +66,7 @@ class GardenIrrigation(hass.Hass):
         self.log("Garden Irrigation System with Countdown initialized.")
 
     def update_countdown(self, kwargs):
-        """Decrements internal counter and updates HA sensors
+        """Decrements internal counter and updates HA sensors (minimalist version)
         """
         for key in ["v1", "v2"]:
             if self.remaining_seconds[key] > 0:
@@ -85,11 +77,8 @@ class GardenIrrigation(hass.Hass):
             entity = self.resttime_entities[key]
             if entity:
                 minutes_left = int((self.remaining_seconds[key] + 59) / 60) if self.remaining_seconds[key] > 0 else 0
-                self.set_state(entity, state=minutes_left, attributes={
-                    "unit_of_measurement": "min", 
-                    "icon": "mdi:timer-sand" if minutes_left > 0 else "mdi:timer-off",
-                    "friendly_name": f"Restzeit {key.upper()}"
-                })
+                # Nur State und Einheit setzen, um 400 Bad Request zu vermeiden
+                self.set_state(entity, state=minutes_left, attributes={"unit_of_measurement": "min"})
 
     def reschedule_callback(self, _entity, _attribute, _old, _new, _kwargs):
         """Reschedule the valves based on the new start times
@@ -154,14 +143,14 @@ class GardenIrrigation(hass.Hass):
 
         # 3. Start this valve
         self.turn_on(self.valves[valve_key])
-        self.log(f"Valve {valve_key} turned ON. Duration: {duration} min")
         
         # 4. Timer & Countdown management
         if self.handles[valve_key]:
             self.cancel_timer(self.handles[valve_key])
 
         self.remaining_seconds[valve_key] = int(duration * 60)
-        # update HA sensor immediately with full duration
+        
+        # update HA sensor immediately
         self.update_countdown(None)
 
         self.handles[valve_key] = self.run_in(
@@ -185,13 +174,11 @@ class GardenIrrigation(hass.Hass):
 
         self.remaining_seconds[valve_key] = 0
         
-        # Sensor in HA auf 0 setzen
+        # Sensor in HA auf 0 setzen (minimalist update)
         entity = self.resttime_entities[valve_key]
         if entity:
-            self.set_state(entity, state=0, attributes={
-                "unit_of_measurement": "min", 
-                "icon": "mdi:timer-off"
-            })
+            self.set_state(entity, state=0, attributes={"unit_of_measurement": "min"})
 
         self.turn_off(self.valves[valve_key])
         self.log(f"Valve {valve_key} OFF.")
+        
