@@ -77,8 +77,8 @@ class GardenIrrigation(hass.Hass):
             entity = self.resttime_entities[key]
             if entity:
                 minutes_left = int((self.remaining_seconds[key] + 59) / 60) if self.remaining_seconds[key] > 0 else 0
-                # Nur State und Einheit setzen, um 400 Bad Request zu vermeiden
-                self.set_state(entity, state=minutes_left, attributes={"unit_of_measurement": "min"})
+                # update the state with remaining minutes (rounding up)
+                self.set_state(entity, state=minutes_left)
 
     def reschedule_callback(self, _entity, _attribute, _old, _new, _kwargs):
         """Reschedule the valves based on the new start times
@@ -177,7 +177,7 @@ class GardenIrrigation(hass.Hass):
         # Sensor in HA auf 0 setzen (minimalist update)
         entity = self.resttime_entities[valve_key]
         if entity:
-            self.set_state(entity, state=0, attributes={"unit_of_measurement": "min"})
+            self.set_state(entity, state=0)
 
         self.turn_off(self.valves[valve_key])
         self.log(f"Valve {valve_key} OFF.")
