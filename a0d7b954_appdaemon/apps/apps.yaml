@@ -205,6 +205,8 @@ garden_irrigation:
   duration_entity: input_number.irrigation_duration
   start_1_entity: input_datetime.irrigation_start_v1
   start_2_entity: input_datetime.irrigation_start_v2
+  sensor_remaining_1: sensor.bewasserung_restzeit_v1
+  sensor_remaining_2: sensor.bewasserung_restzeit_v2
 # -----------------------------------------------------
 # Alarm controller
 # -----------------------------------------------------

@@ -1,27 +1,37 @@
 """
-Garden Irrigation Controller (with Interlocking & App-Protection)
+Garden Irrigation Controller (Full Version)
 
 Description:
-Controls 2 valves with mutual exclusion (only one valve at a time).
-Supports auto-schedules, manual toggle via Shelly Pro 2 inputs, and 
-safety-timers for manual activation via Home Assistant App.
+Controls 2 valves with mutual exclusion (Interlock).
+Features:
+- Scheduled auto-start (if mode is 'Automatic').
+- Manual toggle via Shelly hardware inputs (pos/neg edge).
+- App-Protection: Auto-off timer if started via HA App/UI.
+- Countdown: Real-time remaining time updates in HA sensors.
 
-Interlock Logic:
-When Valve A starts, Valve B is explicitly turned off and its timers cancelled.
+Args:
+    valve_1/2: Entity IDs of the Shelly relays (switch)
+    input_1/2: Entity IDs of the Shelly inputs (binary_sensor)
+    mode_entity: input_select for Automatic/Manual
+    duration_entity: input_number for duration in minutes
+    start_1/2_entity: input_datetime for start times
+    sensor_remaining_1/2: Entity IDs for the countdown sensors (e.g. sensor.irrigation_v1_timer)
 """
 
 import appdaemon.plugins.hass.hassapi as hass
 
 class GardenIrrigation(hass.Hass):
-    """Garden Irrigation Controller with Interlock and App-Protection
+    """Garden Irrigation Controller with Interlock, App-Protection and Countdown
     """
     def initialize(self):
         """Initialize function for appdaemon task.
         """
         self.handles = {"v1": None, "v2": None}
+        self.remaining_seconds = {"v1": 0, "v2": 0}
         self.daily_v1 = None
         self.daily_v2 = None
 
+        # Entities from args
         self.valves = {
             "v1": self.args.get("valve_1"),
             "v2": self.args.get("valve_2")
@@ -30,12 +40,20 @@ class GardenIrrigation(hass.Hass):
             "v1": self.args.get("input_1"),
             "v2": self.args.get("input_2")
         }
+        self.resttime_entities = {
+            "v1": self.args.get("sensor_remaining_1"),
+            "v2": self.args.get("sensor_remaining_2")
+        }
+        
         self.mode = self.args.get("mode_entity")
         self.duration = self.args.get("duration_entity")
         self.starts = {
             "v1": self.args.get("start_1_entity"),
             "v2": self.args.get("start_2_entity")
         }
+
+        # Timer für Countdown-Update (every 60 seconds)
+        self.run_every(self.update_countdown, "now", 60)
 
         # 1. Listen for Manual Hardware Triggers (Shelly Inputs)
         for key, entity in self.inputs.items():
@@ -51,24 +69,41 @@ class GardenIrrigation(hass.Hass):
         self.listen_state(self.reschedule_callback, self.starts["v1"])
         self.listen_state(self.reschedule_callback, self.starts["v2"])
 
+        # initial time plan
         self.reschedule_callback(None, None, None, None, None)
-        self.log("Garden Irrigation with Interlock and App-Protection initialized.")
+        self.log("Garden Irrigation System with Countdown initialized.")
+
+    def update_countdown(self, kwargs):
+        """Decrements internal counter and updates HA sensors
+        """
+        for key in ["v1", "v2"]:
+            if self.remaining_seconds[key] > 0:
+                self.remaining_seconds[key] -= 60
+                if self.remaining_seconds[key] < 0:
+                    self.remaining_seconds[key] = 0
+            
+            entity = self.resttime_entities[key]
+            if entity:
+                minutes_left = int((self.remaining_seconds[key] + 59) / 60) if self.remaining_seconds[key] > 0 else 0
+                self.set_state(entity, state=minutes_left, attributes={
+                    "unit_of_measurement": "min", 
+                    "icon": "mdi:timer-sand" if minutes_left > 0 else "mdi:timer-off",
+                    "friendly_name": f"Restzeit {key.upper()}"
+                })
 
     def reschedule_callback(self, _entity, _attribute, _old, _new, _kwargs):
         """Reschedule the valves based on the new start times
         """
         self.log("Rescheduling valves based on new start times.")
-        if self.daily_v1: 
-            self.cancel_timer(self.daily_v1)
-        if self.daily_v2: 
-            self.cancel_timer(self.daily_v2)
+        if self.daily_v1: self.cancel_timer(self.daily_v1)
+        if self.daily_v2: self.cancel_timer(self.daily_v2)
 
         t1 = self.get_state(self.starts["v1"])
         t2 = self.get_state(self.starts["v2"])
 
-        if t1: 
+        if t1:
             self.daily_v1 = self.run_daily(self.auto_start_callback, t1, valve_key="v1")
-        if t2: 
+        if t2:
             self.daily_v2 = self.run_daily(self.auto_start_callback, t2, valve_key="v2")
         self.log(f"Schedule: V1@{t1}, V2@{t2}")
 
@@ -78,6 +113,7 @@ class GardenIrrigation(hass.Hass):
         self.log(f"Auto start triggered for {kwargs['valve_key']}")
         if self.get_state(self.mode) == "Automatic":
             self.start_irrigation(kwargs['valve_key'])
+            self.log(f"Auto irrigation started for {kwargs['valve_key']} based on schedule.")
 
     def manual_trigger_callback(self, entity, _attribute, old, new, kwargs):
         """Callback for manual toggle via physical Shelly input
@@ -94,7 +130,7 @@ class GardenIrrigation(hass.Hass):
         """Callback to detect external activation (App/Web UI)
         """
         v_key = kwargs['valve_key']
-        # If valve turns ON and NO handle exists, it was started externally
+        # If valve turns ON and NO handle exists, it was started externally (App)
         if old == "off" and new == "on":
             if self.handles[v_key] is None:
                 self.log(f"External trigger (App/UI) detected for {v_key}. Applying duration.")
@@ -114,38 +150,48 @@ class GardenIrrigation(hass.Hass):
         # 2. Get duration
         duration_state = self.get_state(self.duration)
         duration = float(duration_state) if duration_state else 0
+        if duration <= 0: return
 
-        if duration <= 0:
-            self.log(f"Duration for {valve_key} is 0, skipping.")
-            return
-
-        # 3. Start this valve (or keep it on if already on)
+        # 3. Start this valve
         self.turn_on(self.valves[valve_key])
-        self.log(f"Valve {valve_key} ON for {duration} min")
-
-        # 4. Timer management
+        self.log(f"Valve {valve_key} turned ON. Duration: {duration} min")
+        
+        # 4. Timer & Countdown management
         if self.handles[valve_key]:
             self.cancel_timer(self.handles[valve_key])
 
+        self.remaining_seconds[valve_key] = int(duration * 60)
+        # update HA sensor immediately with full duration
+        self.update_countdown(None)
+
         self.handles[valve_key] = self.run_in(
             self.stop_irrigation_callback, 
-            duration * 60, 
+            int(duration * 60), 
             valve_key=valve_key
         )
+        self.log(f"Valve {valve_key} ON for {duration} min")
 
     def stop_irrigation_callback(self, kwargs):
         """Callback for stop irrigation after duration
         """
-        self.log(f"Stopping irrigation for {kwargs['valve_key']}")
         self.stop_irrigation(kwargs['valve_key'])
 
     def stop_irrigation(self, valve_key):
-        """Cleanup and turn off
+        """Cleanup, turn off and reset sensors
         """
-        self.log(f"Stopping irrigation for {valve_key}")
         if self.handles[valve_key]:
             self.cancel_timer(self.handles[valve_key])
             self.handles[valve_key] = None
+
+        self.remaining_seconds[valve_key] = 0
+        
+        # Sensor in HA auf 0 setzen
+        entity = self.resttime_entities[valve_key]
+        if entity:
+            self.set_state(entity, state=0, attributes={
+                "unit_of_measurement": "min", 
+                "icon": "mdi:timer-off"
+            })
 
         self.turn_off(self.valves[valve_key])
         self.log(f"Valve {valve_key} OFF.")
