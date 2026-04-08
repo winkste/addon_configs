@@ -66,7 +66,7 @@ class GardenIrrigation(hass.Hass):
         self.log("Garden Irrigation System with Countdown initialized.")
 
     def update_countdown(self, kwargs):
-        """Decrements internal counter and updates HA sensors (minimalist version)
+        """Decrements internal counter and updates HA sensors (using set_value for input_number)
         """
         for key in ["v1", "v2"]:
             if self.remaining_seconds[key] > 0:
@@ -77,8 +77,8 @@ class GardenIrrigation(hass.Hass):
             entity = self.resttime_entities[key]
             if entity:
                 minutes_left = int((self.remaining_seconds[key] + 59) / 60) if self.remaining_seconds[key] > 0 else 0
-                # update the state with remaining minutes (rounding up)
-                self.set_state(entity, state=minutes_left)
+                # Using set_value as we switched to input_number helpers
+                self.set_value(entity, minutes_left)
 
     def reschedule_callback(self, _entity, _attribute, _old, _new, _kwargs):
         """Reschedule the valves based on the new start times
@@ -150,8 +150,10 @@ class GardenIrrigation(hass.Hass):
 
         self.remaining_seconds[valve_key] = int(duration * 60)
         
-        # update HA sensor immediately
-        self.update_countdown(None)
+        # update HA helper immediately
+        entity = self.resttime_entities[valve_key]
+        if entity:
+            self.set_value(entity, int(duration))
 
         self.handles[valve_key] = self.run_in(
             self.stop_irrigation_callback, 
@@ -174,11 +176,10 @@ class GardenIrrigation(hass.Hass):
 
         self.remaining_seconds[valve_key] = 0
         
-        # Sensor in HA auf 0 setzen (minimalist update)
+        # Reset input_number in HA to 0
         entity = self.resttime_entities[valve_key]
         if entity:
-            self.set_state(entity, state=0)
+            self.set_value(entity, 0)
 
         self.turn_off(self.valves[valve_key])
         self.log(f"Valve {valve_key} OFF.")
-        
