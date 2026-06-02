@@ -89,7 +89,7 @@ ambi_light_garden7:
   module: ambient_light
   class: AmbientLight
   offset: -21
-  entity_ctrl: light.dev50_r7
+  entity_ctrl: light.glas_house_lights
 
 # Ambient light wall barbeque house front lights
 ambi_light_garden5:
@@ -185,12 +185,12 @@ neo_hall_ground:
 # -----------------------------------------------------
 # Daylight controller
 # -----------------------------------------------------
-# Garden fountain - disabled due to winter time
-daylight_control:
-  module: daylight_runner
-  class: DayLightRunner
-  entity_ctrl:
-    - light.dev50_r2
+# obsolete - Garden fountain - disabled due to winter time
+#daylight_control:
+#  module: daylight_runner
+#  class: DayLightRunner
+#  entity_ctrl:
+#    - light.dev50_r2
 # -----------------------------------------------------
 # Garden irrigation controller
 # -----------------------------------------------------
@@ -246,7 +246,6 @@ switch_emergency:
     - light.dev406
     # Garden entities
     - light.dev50_r5
-    - light.dev50_r7
     - light.dev50_r3
     - light.dev50_r6
     - light.dev50_r1
@@ -309,7 +308,6 @@ nightly_reset:
     - light.dev406
     # Garden entities
     - light.dev50_r5
-    - light.dev50_r7
     - light.dev50_r3
     - light.dev50_r6
     - light.dev50_r1
