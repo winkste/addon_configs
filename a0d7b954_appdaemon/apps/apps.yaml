@@ -85,11 +85,11 @@ ambi_light_living:
   entity_ctrl: switch.plugsg3_7
 
 # Ambient light floor garden lights
-ambi_light_garden7:
-  module: ambient_light
-  class: AmbientLight
-  offset: -21
-  entity_ctrl: light.glas_house_lights
+#ambi_light_garden7:
+#  module: ambient_light
+#  class: AmbientLight
+#  offset: -21
+#  entity_ctrl: light.glas_house_lights
 
 # Ambient light wall barbeque house front lights
 ambi_light_garden5:
@@ -181,6 +181,13 @@ neo_hall_ground:
   class: NeoCombined
   sensor: binary_sensor.dev407_switch1
   entity_ctrl: light.dev407
+
+# Garden terrace ambient and motion controller
+neo_garden_terrace:
+  module: neo_combined
+  class: NeoCombined
+  sensor: binary_sensor.shellyblumo1_1_bewegung
+  entity_ctrl: light.glas_house_lights
 
 # -----------------------------------------------------
 # Daylight controller
