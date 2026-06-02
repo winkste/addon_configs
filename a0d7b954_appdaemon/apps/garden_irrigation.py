@@ -3,6 +3,7 @@ Garden Irrigation Controller (Full Version)
 
 Description:
 Controls 2 valves with mutual exclusion (Interlock).
+
 Features:
 - Scheduled auto-start (if mode is 'Automatic').
 - Manual toggle via Shelly hardware inputs (pos/neg edge).
@@ -36,7 +37,7 @@ class GardenIrrigation(hass.Hass):
             "v1": self.args.get("sensor_remaining_1"),
             "v2": self.args.get("sensor_remaining_2")
         }
-        
+
         self.mode = self.args.get("mode_entity")
         self.duration = self.args.get("duration_entity")
         self.starts = {
@@ -73,19 +74,22 @@ class GardenIrrigation(hass.Hass):
                 self.remaining_seconds[key] -= 60
                 if self.remaining_seconds[key] < 0:
                     self.remaining_seconds[key] = 0
-            
+
             entity = self.resttime_entities[key]
             if entity:
                 minutes_left = int((self.remaining_seconds[key] + 59) / 60) if self.remaining_seconds[key] > 0 else 0
                 # Using set_value as we switched to input_number helpers
                 self.set_value(entity, minutes_left)
+                self.log(f"Updated {entity} for {key} with {minutes_left} minutes left.")
 
     def reschedule_callback(self, _entity, _attribute, _old, _new, _kwargs):
         """Reschedule the valves based on the new start times
         """
         self.log("Rescheduling valves based on new start times.")
-        if self.daily_v1: self.cancel_timer(self.daily_v1)
-        if self.daily_v2: self.cancel_timer(self.daily_v2)
+        if self.daily_v1:
+            self.cancel_timer(self.daily_v1)
+        if self.daily_v2:
+            self.cancel_timer(self.daily_v2)
 
         t1 = self.get_state(self.starts["v1"])
         t2 = self.get_state(self.starts["v2"])
@@ -139,17 +143,18 @@ class GardenIrrigation(hass.Hass):
         # 2. Get duration
         duration_state = self.get_state(self.duration)
         duration = float(duration_state) if duration_state else 0
-        if duration <= 0: return
+        if duration <= 0:
+            return
 
         # 3. Start this valve
         self.turn_on(self.valves[valve_key])
-        
+
         # 4. Timer & Countdown management
         if self.handles[valve_key]:
             self.cancel_timer(self.handles[valve_key])
 
         self.remaining_seconds[valve_key] = int(duration * 60)
-        
+
         # update HA helper immediately
         entity = self.resttime_entities[valve_key]
         if entity:
@@ -170,12 +175,14 @@ class GardenIrrigation(hass.Hass):
     def stop_irrigation(self, valve_key):
         """Cleanup, turn off and reset sensors
         """
+        # check timer and cancel if running
         if self.handles[valve_key]:
-            self.cancel_timer(self.handles[valve_key])
+            if self.timer_running(self.handles[valve_key]):
+                self.cancel_timer(self.handles[valve_key])
             self.handles[valve_key] = None
 
         self.remaining_seconds[valve_key] = 0
-        
+
         # Reset input_number in HA to 0
         entity = self.resttime_entities[valve_key]
         if entity:
