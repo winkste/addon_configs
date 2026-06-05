@@ -1,146 +1,168 @@
 """
-NEO RGB LED combined temperature-aware controller: Motion, Ambient light, and Temperature-based color
+AppDaemon Class: NeoCombinedTemp
+Author: AI Collaborator
+Version: 1.1
 
-App to turn lights on when motion detected then off again after a delay.
-Additionally it will turn on ambient light at sunset and adjust the light color from cold white
-to warm white based on a temperature sensor input.
+Description:
+    A sophisticated lighting controller that manages GU10 RGBW/White groups based on:
+    1. Motion: Increases brightness when movement is detected.
+    2. Ambient (Sunset): Maintains a base level of light from sunset until a fixed time (22:00).
+    3. Temperature: Dynamically maps light color (Kelvin) based on an external temperature sensor.
+
+Functionality:
+    - From Sunset to 22:00: Light is in 'Ambient Mode' (dimmed).
+    - If Motion is detected: Light brightens. When motion stops, it dims back to Ambient or turns off (if after 22:00).
+    - Color Temp: Updated every time the light is triggered, based on the current temperature reading.
 
 Args:
-    sensor: binary sensor or a list of sensors to use as trigger
-    temp_sensor: temperature sensor entity to use for color temperature mapping
-    entity_ctrl: list of entity to control when detecting motion, can be a light, script,
-                 scene or anything else that can be turned on/off
-    cold_kelvin: optional cold white color temperature in kelvin (default 6500)
-    warm_kelvin: optional warm white color temperature in kelvin (default 2700)
-    min_temp: optional minimum temperature for mapping (default 0)
-    max_temp: optional maximum temperature for mapping (default 25)
-
-Release Notes
-
-Version 1.0:
-    Initial Version based on neo_combined.py
+    sensor (str): Entity ID of the motion sensor (binary_sensor).
+    temp_sensor (str): Entity ID of the temperature sensor.
+    entity_ctrl (str): Entity ID of the light or light group to control.
+    off_delay (int): Seconds to wait after motion ends before turning off/dimming (default: 60).
+    sunset_offset (int): Minutes relative to sunset to start ambient mode (default: -15).
+    brightness_motion (int): Brightness level (0-255) for motion events (default: 255).
+    brightness_ambi (int): Brightness level (0-255) for ambient mode (default: 125).
+    cold_kelvin (int): Kelvin value for the 'cold' end of the spectrum (default: 6500).
+    warm_kelvin (int): Kelvin value for the 'warm' end of the spectrum (default: 2700).
+    min_temp (float): Temperature value corresponding to cold_kelvin (default: 0.0).
+    max_temp (float): Temperature value corresponding to warm_kelvin (default: 25.0).
 """
 
-from appdaemon.appdaemon import AppDaemon
 import appdaemon.plugins.hass.hassapi as hass
 
-
 class NeoCombinedTemp(hass.Hass):
-    """Neo RGB light combined ambient and motion light with temperature-based white color."""
+    """Combined controller for motion, ambient, and temperature-based light automation."""
 
     def initialize(self):
-        """Initialize the AppDaemon app."""
-        self.ambi_timer = None
-        self.motion_sensor = None
-        self.entity_ctrl = None
-        self.temp_sensor = None
+        """Initialize the App and subscribe to state changes and schedules."""
+        # Load configuration arguments
+        self.entity_ctrl = self.args.get("entity_ctrl")
+        self.motion_sensor = self.args.get("sensor")
+        self.temp_sensor = self.args.get("temp_sensor")
+        
         self.off_delay = self.args.get("off_delay", 60)
-        self.ambi_time = False
         self.sunset_offset = self.args.get("sunset_offset", -15)
-        self.brightness_motion = self.args.get("brightness_motion", 125)
+        self.brightness_motion = self.args.get("brightness_motion", 255)
         self.brightness_ambi = self.args.get("brightness_ambi", 125)
+        
         self.cold_kelvin = self.args.get("cold_kelvin", 6500)
         self.warm_kelvin = self.args.get("warm_kelvin", 2700)
         self.min_temp = self.args.get("min_temp", 0.0)
         self.max_temp = self.args.get("max_temp", 25.0)
 
-        if "sensor" in self.args:
-            self.motion_sensor = self.args["sensor"]
+        # Runtime variables
+        self.ambi_timer = None
+        self.ambi_active = False
+
+        # Register Motion Callbacks
+        if self.motion_sensor:
             self.listen_state(self.motion_on_callback, self.motion_sensor, new="on")
             self.listen_state(self.motion_off_callback, self.motion_sensor, new="off", duration=self.off_delay)
         else:
-            self.log("No sensor specified, motion detection function not available")
+            self.log("No motion sensor specified. Motion features disabled.")
 
-        if "entity_ctrl" in self.args:
-            self.entity_ctrl = self.args["entity_ctrl"]
+        # Register Temperature Callback
+        if self.temp_sensor:
+            self.listen_state(self.temperature_callback, self.temp_sensor)
+        else:
+            self.log("No temp_sensor specified. Temperature-based color updates disabled.")
+
+        # Register Sunset Callback
+        if self.entity_ctrl:
             self.run_at_sunset(self.sunset_callback, offset=self.sunset_offset * 60)
         else:
-            self.log("No entity specified, just logging")
+            self.error("No entity_ctrl specified. The app has nothing to control.")
 
-        if "temp_sensor" in self.args:
-            self.temp_sensor = self.args["temp_sensor"]
-        else:
-            self.log("No temp_sensor specified, color temperature will use default cold/warm values")
-
-    def motion_on_callback(self, _entity, _attribute, _old, _new, _kwargs):
-        """Callback for motion state "on" detection."""
-        self.log(f"Motion detected: {self.motion_sensor}")
+    def motion_on_callback(self, entity, attribute, old, new, kwargs):
+        """Handle motion detection."""
+        self.log(f"Motion detected on {entity}")
         if self.sun_down():
-            self.turn_on_motion_light()
+            self.apply_light_state(motion=True)
 
-    def motion_off_callback(self, _entity, _attribute, _old, _new, _kwargs):
-        """Callback for motion state "off" detection."""
-        self.log(f"Motion off: {self.motion_sensor}")
-        self.turn_off_motion_light()
+    def motion_off_callback(self, entity, attribute, old, new, kwargs):
+        """Handle motion timeout."""
+        self.log(f"Motion cleared on {entity} (timeout reached)")
+        self.apply_light_state(motion=False)
 
-    def turn_on_motion_light(self):
-        """Turn on the controlled light for motion with temperature-based white color."""
-        if not self.ambi_time:
-            self.log(f"Turning {self.entity_ctrl} on for motion")
-            if self.entity_ctrl is not None:
-                kwargs = {
-                    "brightness": self.brightness_motion,
-                    "kelvin": self.get_color_temperature(),
-                }
-                self.turn_on(self.entity_ctrl, **kwargs)
+    def sunset_callback(self, kwargs):
+        """Handle sunset event to start ambient mode."""
+        self.log("Sunset triggered: Starting Ambient Mode.")
+        self.ambi_active = True
 
-    def turn_off_motion_light(self):
-        """Turn off the controlled light for motion."""
-        if not self.ambi_time:
-            self.log(f"Turning {self.entity_ctrl} off for motion")
-            if self.entity_ctrl is not None:
-                self.turn_off(self.entity_ctrl)
+        # Apply light state immediately (unless motion is already active)
+        if self.get_state(self.motion_sensor) == "off":
+            self.apply_light_state(motion=False)
 
-    def sunset_callback(self, _kwargs):
-        """Callback function for sunset event."""
-        self.log("--- Sunset detected ----")
-        self.ambi_time = True
-        self.turn_on_ambi_light()
-        if self.ambi_timer is not None and self.timer_running(self.ambi_timer):
+        # Cancel existing timer if it exists
+        if self.ambi_timer:
             self.cancel_timer(self.ambi_timer)
-            self.ambi_timer = None
-        self.ambi_timer = self.run_at(self.ambi_timer_callback, "22:00:00")
 
-    def ambi_timer_callback(self, _kwargs):
-        """Ambient light timer callback function."""
-        self.ambi_time = False
-        self.log("Ambient timer callback")
-        self.turn_off_ambi_light()
+        # Schedule the end of ambient mode at 22:00
+        self.ambi_timer = self.run_at(self.end_ambient_callback, "22:00:00")
+
+    def end_ambient_callback(self, kwargs):
+        """End ambient mode and turn off light if no motion is active."""
+        self.log("22:00 reached: Ending Ambient Mode.")
+        self.ambi_active = False
         self.ambi_timer = None
 
-    def turn_on_ambi_light(self):
-        """Turn on the controlled light for ambient lighting."""
-        if self.entity_ctrl is not None:
-            self.turn_on(self.entity_ctrl, brightness=self.brightness_ambi, kelvin=self.get_color_temperature())
-            self.log(f"Turned on {self.entity_ctrl} for ambi")
-
-    def turn_off_ambi_light(self):
-        """Turn off the controlled light for ambient lighting."""
-        if self.entity_ctrl is not None:
+        # Turn off light only if no motion is currently detected
+        if self.motion_sensor and self.get_state(self.motion_sensor) == "off":
             self.turn_off(self.entity_ctrl)
-            self.log(f"Turned off {self.entity_ctrl} for ambi")
 
-    def get_color_temperature(self):
-        """Return a color temperature in kelvin based on the configured temperature sensor."""
-        temperature = None
-        if self.temp_sensor is not None:
+    def temperature_callback(self, entity, attribute, old, new, kwargs):
+        """Handle temperature changes and refresh color if active."""
+        self.log(f"Temperature sensor updated: {entity} -> {new}")
+        if self.ambi_active or (self.motion_sensor and self.get_state(self.motion_sensor) == "on"):
+            self.apply_light_state(motion=(self.motion_sensor and self.get_state(self.motion_sensor) == "on"))
+
+    def apply_light_state(self, motion=False):
+        """Determine the correct brightness and color based on current state."""
+        if not self.entity_ctrl:
+            return
+
+        kelvin = self.calculate_kelvin()
+
+        if motion:
+            # High brightness for motion
+            self.log(f"Setting {self.entity_ctrl} to Motion Brightness.")
+            self.turn_on(self.entity_ctrl, brightness=self.brightness_motion, kelvin=kelvin)
+        elif self.ambi_active:
+            # Return to dimmed ambient brightness
+            self.log(f"Setting {self.entity_ctrl} to Ambient Brightness.")
+            self.turn_on(self.entity_ctrl, brightness=self.brightness_ambi, kelvin=kelvin)
+        else:
+            # Outside of ambient time and no motion: Turn Off
+            self.log(f"No motion and Ambient Mode inactive. Turning off {self.entity_ctrl}.")
+            self.turn_off(self.entity_ctrl)
+
+    def calculate_kelvin(self):
+        """Calculate color temperature based on the temperature sensor reading."""
+        temp_val = None
+        if self.temp_sensor:
             state = self.get_state(self.temp_sensor)
             try:
-                temperature = float(state)
-            except (TypeError, ValueError):
-                self.log(f"Unable to parse temperature from {self.temp_sensor}: {state}")
+                temp_val = float(state)
+            except (ValueError, TypeError):
+                self.log(f"Warning: Could not parse temperature '{state}'. Using default.")
 
-        if temperature is None:
-            self.log("Using default cold white because temperature sensor value is unavailable")
+        if temp_val is None:
             return self.cold_kelvin
 
-        if temperature <= self.min_temp:
+        # Linear mapping of temperature to Kelvin
+        if temp_val <= self.min_temp:
             return self.cold_kelvin
-        if temperature >= self.max_temp:
+        if temp_val >= self.max_temp:
             return self.warm_kelvin
 
-        span = self.max_temp - self.min_temp
-        ratio = (temperature - self.min_temp) / span
-        kelvin = int(self.cold_kelvin + (self.warm_kelvin - self.cold_kelvin) * ratio)
-        self.log(f"Temperature {temperature}°C mapped to {kelvin}K")
-        return kelvin
+        # Interpolation logic
+        range_temp = self.max_temp - self.min_temp
+        if range_temp == 0:
+            self.log("min_temp and max_temp are equal; using cold_kelvin fallback.")
+            return self.cold_kelvin
+
+        ratio = (temp_val - self.min_temp) / range_temp
+        target_kelvin = int(self.cold_kelvin + (self.warm_kelvin - self.cold_kelvin) * ratio)
+
+        self.log(f"Temp: {temp_val}°C -> Color: {target_kelvin}K")
+        return target_kelvin
