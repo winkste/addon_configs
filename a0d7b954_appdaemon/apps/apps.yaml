@@ -89,7 +89,7 @@ ambi_light_living:
 #  module: ambient_light
 #  class: AmbientLight
 #  offset: -21
-#  entity_ctrl: light.glas_house_lights
+#  entity_ctrl: light.dev50_r7
 
 # Ambient light wall barbeque house front lights
 ambi_light_garden5:
@@ -183,11 +183,20 @@ neo_hall_ground:
   entity_ctrl: light.dev407
 
 # Garden terrace ambient and motion controller
-neo_garden_terrace:
+#neo_garden_terrace:
+#  module: neo_combined_temp
+#  class: NeoCombinedTemp
+#  sensor: binary_sensor.shellyblumo1_1_bewegung
+#  entity_ctrl: light.glas_house_lights
+#  temp_sensor: sensor.shellybluht1_1_temperatur
+#  sunset_offset: 0
+
+# Garden terrace ambient and motion controller
+neo_garden_terrace_alt:
   module: neo_combined
   class: NeoCombined
   sensor: binary_sensor.shellyblumo1_1_bewegung
-  entity_ctrl: light.glas_house_lights
+  entity_ctrl: light.dev50_r7
 
 # -----------------------------------------------------
 # Daylight controller
@@ -206,12 +215,12 @@ garden_irrigation:
   class: GardenIrrigation
   valve_1: switch.shellypro2_1_2
   valve_2: switch.shellypro2_1_3
-  input_v1: binary_sensor.shellypro2_1_1_eingang_0
-  input_v2: binary_sensor.shellypro2_1_1_eingang_1
+  input_1: binary_sensor.shellypro2_1_1_eingang_0
+  input_2: binary_sensor.shellypro2_1_1_eingang_1
   mode_entity: input_select.irrigation_mode
   duration_entity: input_number.irrigation_duration
-  start_1_entity: input_datetime.irrigation_start_v1
-  start_2_entity: input_datetime.irrigation_start_v2
+  start_sequence_1: input_datetime.irrigation_start_1
+  start_sequence_2: input_datetime.irrigation_start_2
   sensor_remaining_1: input_number.irrigation_resttime_v1
   sensor_remaining_2: input_number.irrigation_resttime_v2
 # -----------------------------------------------------

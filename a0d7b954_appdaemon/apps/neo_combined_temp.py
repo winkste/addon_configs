@@ -53,6 +53,8 @@ class NeoCombinedTemp(hass.Hass):
         # Runtime variables
         self.ambi_timer = None
         self.ambi_active = False
+        self.manual_override = False
+        self._internal_action = False
 
         # Register Motion Callbacks
         if self.motion_sensor:
@@ -67,8 +69,11 @@ class NeoCombinedTemp(hass.Hass):
         else:
             self.log("No temp_sensor specified. Temperature-based color updates disabled.")
 
-        # Register Sunset Callback
+        # Register Entity State Callback
         if self.entity_ctrl:
+            entities = self.entity_ctrl if isinstance(self.entity_ctrl, (list, tuple)) else [self.entity_ctrl]
+            for entity in entities:
+                self.listen_state(self.entity_state_callback, entity)
             self.run_at_sunset(self.sunset_callback, offset=self.sunset_offset * 60)
         else:
             self.error("No entity_ctrl specified. The app has nothing to control.")
@@ -77,12 +82,14 @@ class NeoCombinedTemp(hass.Hass):
         """Handle motion detection."""
         self.log(f"Motion detected on {entity}")
         if self.sun_down():
-            self.apply_light_state(motion=True)
+            # schedule the light state change to avoid long-running listener
+            self.run_in(self._run_apply_state, 0, motion=True)
 
     def motion_off_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion timeout."""
         self.log(f"Motion cleared on {entity} (timeout reached)")
-        self.apply_light_state(motion=False)
+        # schedule the light state change to avoid long-running listener
+        self.run_in(self._run_apply_state, 0, motion=False)
 
     def sunset_callback(self, kwargs):
         """Handle sunset event to start ambient mode."""
@@ -108,13 +115,18 @@ class NeoCombinedTemp(hass.Hass):
 
         # Turn off light only if no motion is currently detected
         if self.motion_sensor and self.get_state(self.motion_sensor) == "off":
-            self.turn_off(self.entity_ctrl)
+            if self.manual_override:
+                self.log("Manual override active; keeping light on after ambient mode ends.")
+                return
+            self._internal_turn_off()
 
     def temperature_callback(self, entity, attribute, old, new, kwargs):
         """Handle temperature changes and refresh color if active."""
         self.log(f"Temperature sensor updated: {entity} -> {new}")
         if self.ambi_active or (self.motion_sensor and self.get_state(self.motion_sensor) == "on"):
-            self.apply_light_state(motion=(self.motion_sensor and self.get_state(self.motion_sensor) == "on"))
+            # schedule refresh so callbacks remain short
+            current_motion = (self.motion_sensor and self.get_state(self.motion_sensor) == "on")
+            self.run_in(self._run_apply_state, 0, motion=current_motion)
 
     def apply_light_state(self, motion=False):
         """Determine the correct brightness and color based on current state."""
@@ -126,15 +138,18 @@ class NeoCombinedTemp(hass.Hass):
         if motion:
             # High brightness for motion
             self.log(f"Setting {self.entity_ctrl} to Motion Brightness.")
-            self.turn_on(self.entity_ctrl, brightness=self.brightness_motion, kelvin=kelvin)
+            self._internal_turn_on(brightness=self.brightness_motion, kelvin=kelvin)
         elif self.ambi_active:
             # Return to dimmed ambient brightness
             self.log(f"Setting {self.entity_ctrl} to Ambient Brightness.")
-            self.turn_on(self.entity_ctrl, brightness=self.brightness_ambi, kelvin=kelvin)
+            self._internal_turn_on(brightness=self.brightness_ambi, kelvin=kelvin)
         else:
+            if self.manual_override:
+                self.log(f"Manual override active; leaving {self.entity_ctrl} on.")
+                return
             # Outside of ambient time and no motion: Turn Off
             self.log(f"No motion and Ambient Mode inactive. Turning off {self.entity_ctrl}.")
-            self.turn_off(self.entity_ctrl)
+            self._internal_turn_off()
 
     def calculate_kelvin(self):
         """Calculate color temperature based on the temperature sensor reading."""
@@ -166,3 +181,40 @@ class NeoCombinedTemp(hass.Hass):
 
         self.log(f"Temp: {temp_val}°C -> Color: {target_kelvin}K")
         return target_kelvin
+
+    def _internal_turn_on(self, **kwargs):
+        self._internal_action = True
+        try:
+            self.turn_on(self.entity_ctrl, **kwargs)
+        finally:
+            self.run_in(self._clear_internal_action, 0)
+
+    def _internal_turn_off(self):
+        self._internal_action = True
+        try:
+            self.turn_off(self.entity_ctrl)
+        finally:
+            self.run_in(self._clear_internal_action, 0)
+
+    def _clear_internal_action(self, kwargs):
+        self._internal_action = False
+
+    def entity_state_callback(self, entity, attribute, old, new, kwargs):
+        if self._internal_action:
+            return
+
+        if old == "off" and new == "on":
+            self.manual_override = True
+            self.log(f"Manual override enabled for {entity}")
+        elif old == "on" and new == "off":
+            if self.manual_override:
+                self.manual_override = False
+                self.log(f"Manual override cleared for {entity}")
+
+    def _run_apply_state(self, kwargs):
+        """Scheduled wrapper to call `apply_light_state` off the listener thread."""
+        motion = kwargs.get("motion", False)
+        try:
+            self.apply_light_state(motion=motion)
+        except Exception as e:
+            self.log(f"Error in scheduled apply_light_state: {e}", level="ERROR")
