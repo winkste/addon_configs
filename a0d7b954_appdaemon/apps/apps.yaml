@@ -183,6 +183,14 @@ neo_hall_ground:
   entity_ctrl: light.dev407
 
 # Garden terrace ambient and motion controller
+neo_garden_terrace:
+  module: neo_combined
+  class: NeoCombined
+  sensor: binary_sensor.shellyblumo1_1_bewegung
+  entity_ctrl: light.glas_house_lights
+  sunset_offset: 0
+
+# Garden terrace ambient and motion controller with temperature sensor
 #neo_garden_terrace:
 #  module: neo_combined_temp
 #  class: NeoCombinedTemp
@@ -192,11 +200,11 @@ neo_hall_ground:
 #  sunset_offset: 0
 
 # Garden terrace ambient and motion controller
-neo_garden_terrace_alt:
-  module: neo_combined
-  class: NeoCombined
-  sensor: binary_sensor.shellyblumo1_1_bewegung
-  entity_ctrl: light.dev50_r7
+#neo_garden_terrace_alt:
+#  module: neo_combined
+#  class: NeoCombined
+#  sensor: binary_sensor.shellyblumo1_1_bewegung
+#  entity_ctrl: light.dev50_r7
 
 # -----------------------------------------------------
 # Daylight controller
