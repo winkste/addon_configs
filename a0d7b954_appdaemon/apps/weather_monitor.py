@@ -4,6 +4,7 @@ Weather Monitoring App
 Description:
 Logs the current weather condition and the daily forecast (precipitation and condition)
 every hour to analyze data patterns for future automation triggers.
+Initializes with an immediate execution check.
 """
 
 import appdaemon.plugins.hass.hassapi as hass
@@ -19,13 +20,21 @@ class WeatherMonitor(hass.Hass):
             self.log("ERROR: No weather_entity configured in apps.yaml", level="ERROR")
             return
 
-        # Run exactly at the start of every hour (e.g., 14:00, 15:00, etc.)
-        self.run_every(self.check_and_log_weather, "now", 60 * 60)
-        self.log(f"Weather Monitoring App initialized for {self.weather_entity}. Logging every hour.")
+        self.log(f"Weather Monitoring App starting for {self.weather_entity}...")
+
+        # Execute immediately via direct function call during init
+        self.check_and_log_weather(None)
+
+        # Schedule execution every hour (3600 seconds) starting from the next hour
+        self.run_every(self.check_and_log_weather, "now + 3600", 60 * 60)
+        
+        self.log("Weather Monitoring App successfully initialized and scheduled.")
 
     def check_and_log_weather(self, kwargs):
         """Fetches the daily forecast using the modern service call and logs key metrics.
         """
+        self.log("Fetching current weather report...")
+        
         # 1. Fetch current state as baseline
         current_state = self.get_state(self.weather_entity)
         
@@ -52,7 +61,6 @@ class WeatherMonitor(hass.Hass):
         log_msg += f"\n[Current State] Condition: {current_state}"
 
         # Loop through the first 3 days (Today, Tomorrow, Day after tomorrow)
-        # to see how the predictions evolve over the hours
         max_days = min(3, len(forecast_list))
         for i in range(max_days):
             day_data = forecast_list[i]
