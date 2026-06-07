@@ -58,11 +58,16 @@ class WeatherMonitor(hass.Hass):
             self._fallback_parse_forecast()
             return
 
-        # Response structure: {"forecast": [...]}
+        # Debug: Log the response structure to understand what we're getting
+        self.log(f"DEBUG: Service response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+        self.log(f"DEBUG: Full response: {response}")
+
+        # Response structure might be: {"forecast": [...]} or wrapped differently
         forecast_list = response.get("forecast", [])
         
         if not forecast_list:
-            self.log("WARNING: Forecast list is empty.", level="WARNING")
+            self.log("WARNING: Forecast list is empty in service response. Falling back to attributes.", level="WARNING")
+            self._fallback_parse_forecast()
             return
 
         # Start generating the log message
@@ -88,17 +93,32 @@ class WeatherMonitor(hass.Hass):
     def _fallback_parse_forecast(self):
         """Fallback: Parse forecast from entity attributes if service call fails
         """
+        self.log("DEBUG: Attempting fallback attribute parsing...")
         attrs = self.get_state(self.weather_entity, attribute="all")
         
-        if not attrs or "attributes" not in attrs:
-            self.log("ERROR: Could not retrieve entity attributes.", level="ERROR")
+        if not attrs:
+            self.log("ERROR: get_state returned None.", level="ERROR")
+            return
+        
+        self.log(f"DEBUG: Entity all attributes keys: {attrs.keys() if isinstance(attrs, dict) else 'Not a dict'}")
+        
+        if "attributes" not in attrs:
+            self.log("ERROR: No 'attributes' key in entity data.", level="ERROR")
             return
         
         forecast_list = attrs["attributes"].get("forecast", [])
-        current_state = attrs["state"]
+        current_state = attrs.get("state", "unknown")
+        
+        self.log(f"DEBUG: Forecast list length from attributes: {len(forecast_list)}")
         
         if not forecast_list:
             self.log("WARNING: No forecast data available in attributes.", level="WARNING")
+            # Still try to log current conditions
+            log_msg = f"\n--- WEATHER REPORT (CURRENT ONLY) FOR {self.weather_entity.upper()} ---"
+            log_msg += f"\n[Current State] Condition: {current_state}"
+            log_msg += "\n[Forecast] No forecast data available"
+            log_msg += "\n----------------------------------------"
+            self.log(log_msg)
             return
 
         log_msg = f"\n--- WEATHER REPORT (FROM ATTRIBUTES) FOR {self.weather_entity.upper()} ---"
