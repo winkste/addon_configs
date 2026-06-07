@@ -4,7 +4,7 @@ Weather Monitoring App
 Description:
 Logs the current weather condition and the daily forecast (precipitation and condition)
 every hour to analyze data patterns for future automation triggers.
-Initializes with an immediate execution check.
+Initializes with an immediate execution check and explicit service response fetch.
 """
 
 import appdaemon.plugins.hass.hassapi as hass
@@ -38,16 +38,22 @@ class WeatherMonitor(hass.Hass):
         # 1. Fetch current state as baseline
         current_state = self.get_state(self.weather_entity)
         
-        # 2. Call the modern get_forecasts service
-        response = self.call_service(
-            "weather/get_forecasts",
-            entity_id=self.weather_entity,
-            type="daily"
-        )
+        # 2. Call the modern get_forecasts service with explicit result return
+        try:
+            # Using the HASS namespace directly to ensure response data mapping works
+            response = self.call_service(
+                "weather/get_forecasts",
+                entity_id=self.weather_entity,
+                type="daily",
+                return_result=True
+            )
+        except Exception as e:
+            self.log(f"WARNING: Service call failed with error: {e}", level="WARNING")
+            return
 
         # Safety check if response is valid
         if not response or self.weather_entity not in response:
-            self.log(f"WARNING: Could not fetch forecast data for {self.weather_entity}", level="WARNING")
+            self.log(f"WARNING: Could not fetch forecast data for {self.weather_entity}. Response: {response}", level="WARNING")
             return
 
         forecast_list = response[self.weather_entity].get("forecast", [])
