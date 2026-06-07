@@ -60,10 +60,17 @@ class WeatherMonitor(hass.Hass):
 
         # Debug: Log the response structure to understand what we're getting
         self.log(f"DEBUG: Service response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
-        self.log(f"DEBUG: Full response: {response}")
 
-        # Response structure might be: {"forecast": [...]} or wrapped differently
-        forecast_list = response.get("forecast", [])
+        # Response structure from weather/get_forecasts service:
+        # {'result': {'response': {'weather.forecast_home': {'forecast': [...]}}}}
+        forecast_list = []
+        
+        # Navigate the nested response structure
+        if isinstance(response, dict) and 'result' in response:
+            result = response['result']
+            if isinstance(result, dict) and 'response' in result:
+                weather_data = result['response'].get(self.weather_entity, {})
+                forecast_list = weather_data.get('forecast', [])
         
         if not forecast_list:
             self.log("WARNING: Forecast list is empty in service response. Falling back to attributes.", level="WARNING")
