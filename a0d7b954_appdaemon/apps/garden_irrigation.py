@@ -23,6 +23,9 @@ class GardenIrrigation(hass.Hass):
         self.remaining_seconds = {"v1": 0, "v2": 0}
         self.daily_start1 = None
         self.daily_start2 = None
+        
+        # Track whether the currently running valve is part of an active auto sequence
+        self.sequence_active = False
 
         # Load entities from arguments
         self.valves = {
@@ -117,6 +120,8 @@ class GardenIrrigation(hass.Hass):
         if old == "off" and new == "on":
             self.start_irrigation(v_key, is_auto_sequence=False)
         elif old == "on" and new == "off":
+            # Manual user intervention kills the running sequence context completely
+            self.sequence_active = False
             self.stop_irrigation(v_key)
 
     def valve_state_callback(self, entity, _attribute, old, new, kwargs):
@@ -128,8 +133,9 @@ class GardenIrrigation(hass.Hass):
                 self.log(f"External trigger {v_key}. Standalone mode without sequence.")
                 self.start_irrigation(v_key, is_auto_sequence=False)
         elif old == "on" and new == "off":
-            # App/UI turned off the valve; stop any running timer
-            self.log(f"App/UI turned off {v_key}.")
+            # User manually turned off via App/UI; kill active sequence context completely
+            self.log(f"App/UI turned off {v_key}. Cancelling sequence state.")
+            self.sequence_active = False
             self.stop_irrigation(v_key)
 
     def start_irrigation(self, valve_key, is_auto_sequence=False):
@@ -150,6 +156,12 @@ class GardenIrrigation(hass.Hass):
         if not self.valves.get(valve_key):
             self.log(f"No valve entity configured for {valve_key}; aborting start.")
             return
+
+        # Set or reset the active sequence flag tracking state
+        if is_auto_sequence:
+            self.sequence_active = True
+        else:
+            self.sequence_active = False
 
         self.turn_on(self.valves[valve_key])
 
@@ -181,13 +193,13 @@ class GardenIrrigation(hass.Hass):
 
         self.stop_irrigation(valve_key)
 
-        # Sequence logic: If V1 finished and sequence is active, start V2
-        # Only proceed if mode is still Automatic
-        if is_auto_sequence and valve_key == "v1" and self.get_state(self.mode) == "Automatic":
-            self.log("V1 finished. Now starting V2 in sequence.")
+        # Sequence logic: Proceed only if parameter is True, state flag is active, and mode is Automatic
+        if is_auto_sequence and self.sequence_active and valve_key == "v1" and self.get_state(self.mode) == "Automatic":
+            self.log("V1 finished naturally. Now starting V2 in sequence.")
             self.start_irrigation("v2", is_auto_sequence=True)
         elif is_auto_sequence and valve_key == "v2":
             self.log("Auto-sequence finished.")
+            self.sequence_active = False
 
     def stop_irrigation(self, valve_key):
         """Cleanup timer, turn off hardware and reset sensors
