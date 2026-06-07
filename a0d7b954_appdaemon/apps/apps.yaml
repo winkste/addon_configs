@@ -207,6 +207,13 @@ neo_garden_terrace:
 #  entity_ctrl: light.dev50_r7
 
 # -----------------------------------------------------
+# Weather Monitor
+# -----------------------------------------------------
+weather_monitor:
+  module: weather_monitor
+  class: WeatherMonitor
+  weather_entity: weather.forecast_home  # <-- Hier deine Entität eintragen
+# -----------------------------------------------------
 # Daylight controller
 # -----------------------------------------------------
 # obsolete - Garden fountain - disabled due to winter time
