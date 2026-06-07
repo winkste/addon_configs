@@ -127,6 +127,10 @@ class GardenIrrigation(hass.Hass):
             if self.handles[v_key] is None:
                 self.log(f"External trigger {v_key}. Standalone mode without sequence.")
                 self.start_irrigation(v_key, is_auto_sequence=False)
+        elif old == "on" and new == "off":
+            # App/UI turned off the valve; stop any running timer
+            self.log(f"App/UI turned off {v_key}.")
+            self.stop_irrigation(v_key)
 
     def start_irrigation(self, valve_key, is_auto_sequence=False):
         """Starts a valve. is_auto_sequence determines if the next valve should follow.
@@ -178,7 +182,8 @@ class GardenIrrigation(hass.Hass):
         self.stop_irrigation(valve_key)
 
         # Sequence logic: If V1 finished and sequence is active, start V2
-        if is_auto_sequence and valve_key == "v1":
+        # Only proceed if mode is still Automatic
+        if is_auto_sequence and valve_key == "v1" and self.get_state(self.mode) == "Automatic":
             self.log("V1 finished. Now starting V2 in sequence.")
             self.start_irrigation("v2", is_auto_sequence=True)
         elif is_auto_sequence and valve_key == "v2":
