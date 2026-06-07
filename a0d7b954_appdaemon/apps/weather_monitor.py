@@ -4,7 +4,7 @@ Weather Monitoring App
 Description:
 Logs the current weather condition and the daily forecast (precipitation and condition)
 every hour to analyze data patterns for future automation triggers.
-Initializes with an immediate execution check and explicit service response fetch.
+Initializes with an immediate execution check and native plugin service response fetch.
 """
 
 import appdaemon.plugins.hass.hassapi as hass
@@ -38,25 +38,28 @@ class WeatherMonitor(hass.Hass):
         # 1. Fetch current state as baseline
         current_state = self.get_state(self.weather_entity)
         
-        # 2. Call the modern get_forecasts service with explicit result return
+        # 2. Call the weather/get_forecasts service via AppDaemon's call_service method
         try:
-            # Using the HASS namespace directly to ensure response data mapping works
             response = self.call_service(
                 "weather/get_forecasts",
                 entity_id=self.weather_entity,
                 type="daily",
-                return_result=True
+                return_response=True
             )
         except Exception as e:
-            self.log(f"WARNING: Service call failed with error: {e}", level="WARNING")
+            self.log(f"ERROR: Service call failed: {e}", level="ERROR")
+            self.log("Falling back to attributes parsing...", level="WARNING")
+            self._fallback_parse_forecast()
             return
 
         # Safety check if response is valid
-        if not response or self.weather_entity not in response:
-            self.log(f"WARNING: Could not fetch forecast data for {self.weather_entity}. Response: {response}", level="WARNING")
+        if not response:
+            self.log("WARNING: Service returned empty response. Falling back to attributes.", level="WARNING")
+            self._fallback_parse_forecast()
             return
 
-        forecast_list = response[self.weather_entity].get("forecast", [])
+        # Response structure: {"forecast": [...]}
+        forecast_list = response.get("forecast", [])
         
         if not forecast_list:
             self.log("WARNING: Forecast list is empty.", level="WARNING")
@@ -80,4 +83,36 @@ class WeatherMonitor(hass.Hass):
         log_msg += "\n----------------------------------------"
         
         # Output everything into the standard AppDaemon log
+        self.log(log_msg)
+
+    def _fallback_parse_forecast(self):
+        """Fallback: Parse forecast from entity attributes if service call fails
+        """
+        attrs = self.get_state(self.weather_entity, attribute="all")
+        
+        if not attrs or "attributes" not in attrs:
+            self.log("ERROR: Could not retrieve entity attributes.", level="ERROR")
+            return
+        
+        forecast_list = attrs["attributes"].get("forecast", [])
+        current_state = attrs["state"]
+        
+        if not forecast_list:
+            self.log("WARNING: No forecast data available in attributes.", level="WARNING")
+            return
+
+        log_msg = f"\n--- WEATHER REPORT (FROM ATTRIBUTES) FOR {self.weather_entity.upper()} ---"
+        log_msg += f"\n[Current State] Condition: {current_state}"
+
+        max_days = min(3, len(forecast_list))
+        for i in range(max_days):
+            day_data = forecast_list[i]
+            date_str = day_data.get("datetime", "").split("T")[0] if day_data.get("datetime") else "Unknown"
+            condition = day_data.get("condition", "unknown")
+            precipitation = day_data.get("precipitation", 0.0)
+            
+            day_label = "Today" if i == 0 else ("Tomorrow" if i == 1 else "Day After")
+            log_msg += f"\n[{day_label} - {date_str}] Condition: {condition} | Precipitation: {precipitation}mm"
+
+        log_msg += "\n----------------------------------------"
         self.log(log_msg)
