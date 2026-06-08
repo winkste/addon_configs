@@ -38,11 +38,10 @@ class WeatherMonitor(hass.Hass):
         # 1. Fetch current state as baseline
         current_state = self.get_state(self.weather_entity)
         
-        # 2. Call the weather.get_forecasts service via AppDaemon's call_service method
+        # 2. Call the weather/get_forecasts service via AppDaemon's call_service method
         try:
             response = self.call_service(
-                "weather",
-                "get_forecasts",
+                "weather/get_forecasts",
                 entity_id=self.weather_entity,
                 type="daily",
                 return_response=True
@@ -53,25 +52,24 @@ class WeatherMonitor(hass.Hass):
             self._fallback_parse_forecast()
             return
 
-        # Validate and parse the returned response safely. If structure isn't as expected,
-        # fall back to parsing the entity attributes.
+        # Safety check if response is valid
+        if not response:
+            self.log("WARNING: Service returned empty response. Falling back to attributes.", level="WARNING")
+            self._fallback_parse_forecast()
+            return
+
+        # Debug: Log the response structure to understand what we're getting
+        # Response structure from weather/get_forecasts service:
+        # {'result': {'response': {'weather.forecast_home': {'forecast': [...]}}}}
         forecast_list = []
-        if isinstance(response, dict):
-            # If the service reported an error or success=False, fallback
-            if response.get("success") is False or response.get("error"):
-                self.log("WARNING: Service response indicates error. Falling back to attributes.", level="WARNING")
-                self._fallback_parse_forecast()
-                return
-
-            # Expected nested structure: result -> response -> <entity_id> -> forecast
-            try:
-                result = response.get("result", {})
-                resp = result.get("response", {}) if isinstance(result, dict) else {}
-                weather_data = resp.get(self.weather_entity, {}) if isinstance(resp, dict) else {}
-                forecast_list = weather_data.get("forecast", []) if isinstance(weather_data, dict) else []
-            except Exception:
-                forecast_list = []
-
+        
+        # Navigate the nested response structure
+        if isinstance(response, dict) and 'result' in response:
+            result = response['result']
+            if isinstance(result, dict) and 'response' in result:
+                weather_data = result['response'].get(self.weather_entity, {})
+                forecast_list = weather_data.get('forecast', [])
+        
         if not forecast_list:
             self.log("WARNING: Forecast list is empty in service response. Falling back to attributes.", level="WARNING")
             self._fallback_parse_forecast()
