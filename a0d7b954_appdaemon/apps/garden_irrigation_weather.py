@@ -116,7 +116,7 @@ class GardenIrrigationWeather(hass.Hass):
             self.run_every(self.periodic_weather_check, "now", 30 * 60)
 
         # Daily reset of hydration check flag at midnight
-        self.run_daily(self.reset_daily_check, "00:00:00")
+        self.run_daily(self.reset_daily_check, "23:30:00")
 
         # Initial schedule setup
         self.reschedule_callback(None, None, None, None, None)
@@ -422,46 +422,41 @@ class GardenIrrigationWeather(hass.Hass):
         )
         self.log(f"Valve {valve_key} ON. Sequence-Mode: {is_auto_sequence}")
 
-    def stop_irrigation_callback(self, kwargs):
-        """Stops the valve and checks if next one in sequence should start
-        """
-        valve_key = kwargs['valve_key']
-        is_auto_sequence = kwargs.get('is_auto_sequence', False)
+def stop_irrigation_callback(self, kwargs):
+    """Stops the valve and checks if next one in sequence should start
+    """
+    valve_key = kwargs['valve_key']
+    is_auto_sequence = kwargs.get('is_auto_sequence', False)
 
-        self.stop_irrigation(valve_key)
-        
-        # Update hydrated_level after sequence finishes
-        # Each sequence delivers: 2 * duration * water_per_minute
-        if is_auto_sequence:
-            duration_state = self.get_state(self.duration)
-            duration = float(duration_state) if duration_state else 0
-            if duration > 0:
-                # One full irrigation day = 2 sequences
-                water_added = 2 * duration * self.water_per_minute
-                self.hydrated_level += water_added
-                
-                # Apply bounds
-                if self.hydrated_level > self.hydrated_level_max:
-                    self.hydrated_level = self.hydrated_level_max
-                elif self.hydrated_level < self.hydrated_level_min:
-                    self.hydrated_level = self.hydrated_level_min
-                
-                # Update helper entity
-                if self.hydrated_level_entity:
-                    self.set_value(self.hydrated_level_entity, round(self.hydrated_level, 1))
-                
-                self.log(f"Updated hydrated_level after {valve_key} finish: +{water_added:.1f}mm -> {self.hydrated_level:.1f}mm")
+    self.stop_irrigation(valve_key)
 
-        # Sequence logic: Proceed only if all conditions are met
-        if (is_auto_sequence and self.sequence_active and valve_key == "v1" 
-            and self.get_state(self.mode) == "Automatic" and not self.is_rain_blocked()):
-            self.log("V1 finished naturally. Now starting V2 in sequence.")
-            self.start_irrigation("v2", is_auto_sequence=True)
-        elif is_auto_sequence and valve_key == "v2":
-            self.log("Auto-sequence finished.")
-            self.sequence_active = False
-            # Reset daily check flag for tomorrow
-            self.daily_check_done = False
+    # Sequence logic: Proceed only if all conditions are met
+    if (is_auto_sequence and self.sequence_active and valve_key == "v1" 
+        and self.get_state(self.mode) == "Automatic" and not self.is_rain_blocked()):
+        self.log("V1 finished naturally. Now starting V2 in sequence.")
+        self.start_irrigation("v2", is_auto_sequence=True)
+
+    elif is_auto_sequence and valve_key == "v2":
+        self.log("Auto-sequence finished.")
+        self.sequence_active = False
+        self.daily_check_done = False
+
+        # Update hydrated_level ONLY HERE when the entire sequence is fully done
+        duration_state = self.get_state(self.duration)
+        duration = float(duration_state) if duration_state else 0
+        if duration > 0:
+            water_added = duration * self.water_per_minute
+            self.hydrated_level += water_added
+
+            if self.hydrated_level > self.hydrated_level_max:
+                self.hydrated_level = self.hydrated_level_max
+            elif self.hydrated_level < self.hydrated_level_min:
+                self.hydrated_level = self.hydrated_level_min
+
+            if self.hydrated_level_entity:
+                self.set_value(self.hydrated_level_entity, round(self.hydrated_level, 1))
+
+            self.log(f"Updated hydrated_level after complete sequence finish: +{water_added:.1f}mm -> {self.hydrated_level:.1f}mm")
 
     def stop_irrigation(self, valve_key):
         """Cleanup timer, turn off hardware and reset sensors
