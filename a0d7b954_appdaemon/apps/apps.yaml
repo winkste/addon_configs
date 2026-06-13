@@ -259,6 +259,8 @@ garden_irrigation:
   hydrated_level_entity: input_number.hydrade_level
   hydrated_level_max: 100
   hydrated_level_min: -100
+  water_consumption_per_day: 5.0
+  water_per_minute: 0.7
 # -----------------------------------------------------
 # Alarm controller
 # -----------------------------------------------------
