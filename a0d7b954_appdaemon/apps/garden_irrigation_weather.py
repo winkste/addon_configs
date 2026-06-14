@@ -24,6 +24,8 @@ class GardenIrrigationWeather(hass.Hass):
         """Initialize function for AppDaemon task.
         """
         self.handles = {"v1": None, "v2": None}
+        self.safety_handles = {"v1": None, "v2": None}  # emergency stop timers if needed in future expansions
+        self.remaining_seconds = {"v1": 0, "v2": 0}
         self.remaining_seconds = {"v1": 0, "v2": 0}
         self.daily_start1 = None
         self.daily_start2 = None
@@ -50,7 +52,7 @@ class GardenIrrigationWeather(hass.Hass):
 
         self.mode = self.args.get("mode_entity")
         self.duration = self.args.get("duration_entity")
-        
+
         # Start times for the whole sequence
         self.starts = {
             "s1": self.args.get("start_sequence_1"),
@@ -62,14 +64,14 @@ class GardenIrrigationWeather(hass.Hass):
         self.rain_sensor = self.args.get("rain_sensor")  # optional rain binary sensor
         self.rain_blockout_hours = self.args.get("rain_blockout_hours", 6)
         self.rainy_states = self.args.get("rainy_states", ["rainy", "pouring", "snowy"])
-        
+
         # Hydration balance model configuration
         self.water_consumption_per_day = float(self.args.get("water_consumption_per_day", 5.0))  # mm/day
         self.water_per_minute = float(self.args.get("water_per_minute", 1.0))  # mm/min
         self.hydrated_level_entity = self.args.get("hydrated_level_entity")  # HA helper number entity
         self.hydrated_level_max = float(self.args.get("hydrated_level_max", 100.0))  # upper bound (mm)
         self.hydrated_level_min = float(self.args.get("hydrated_level_min", -50.0))  # lower bound (mm)
-        
+
         # Initialize hydrated_level from helper entity or start at 0
         self.hydrated_level = 0.0
         if self.hydrated_level_entity:
@@ -80,7 +82,7 @@ class GardenIrrigationWeather(hass.Hass):
                     self.log(f"Initialized hydrated_level from {self.hydrated_level_entity}: {self.hydrated_level}mm")
             except (ValueError, TypeError):
                 self.log(f"WARNING: Could not parse hydrated_level from {self.hydrated_level_entity}", level="WARNING")
-        
+
         # Track if daily hydration check has been done
         self.daily_check_done = False
 
@@ -110,7 +112,7 @@ class GardenIrrigationWeather(hass.Hass):
             self.run_in(self.check_initial_weather, 2)
         if self.rain_sensor:
             self.listen_state(self.rain_sensor_callback, self.rain_sensor)
-        
+
         # Periodic weather check every 30 minutes to catch edge cases
         if self.weather_entity or self.rain_sensor:
             self.run_every(self.periodic_weather_check, "now", 30 * 60)
@@ -164,7 +166,7 @@ class GardenIrrigationWeather(hass.Hass):
         if self.is_rain_blocked():
             self.log(f"Rain blockout active until {self.rain_blocked_until}; skipping auto sequence start.")
             return
-        
+
         # Perform daily hydration balance check once per day (at first sequence trigger)
         if not self.daily_check_done:
             self.daily_check_done = True
@@ -177,7 +179,7 @@ class GardenIrrigationWeather(hass.Hass):
             if not irrigation_allowed:
                 self.log(f"Auto sequence blocked by hydration balance check: {details}")
                 return
-        
+
         self.log("Auto start: V1 starting, V2 will follow (hydration OK).")
         self.start_irrigation("v1", is_auto_sequence=True)
 
@@ -196,12 +198,12 @@ class GardenIrrigationWeather(hass.Hass):
         
         # Calculate today's balance
         balance = self.hydrated_level - self.water_consumption_per_day + today_precip
-        
+
         details = (f"Hydration check: Current={self.hydrated_level:.1f}mm, "
                    f"Consumption=-{self.water_consumption_per_day:.1f}mm, "
                    f"Forecast=+{today_precip:.1f}mm, "
                    f"Balance={balance:.1f}mm")
-        
+
         # Log the balance calculation
         self.log(details)
         
@@ -212,7 +214,7 @@ class GardenIrrigationWeather(hass.Hass):
             self.log(f"Hydration deficit detected ({balance:.1f}mm). Irrigation allowed.")
         else:
             self.log(f"Sufficient hydration ({balance:.1f}mm). Irrigation blocked.")
-        
+
         return allow_irrigation, details
 
     def _get_today_precipitation(self):
@@ -255,7 +257,7 @@ class GardenIrrigationWeather(hass.Hass):
             today = forecast_list[0]
             precip = float(today.get("precipitation", 0.0) or 0.0)
             return precip
-        
+
         return 0.0
 
     def is_rain_blocked(self):
@@ -276,7 +278,7 @@ class GardenIrrigationWeather(hass.Hass):
         if new is None:
             self.log(f"Weather state is None; ignoring.", level="WARNING")
             return
-        
+
         self.log(f"Weather state changed: {old} -> {new}")
         if new in self.rainy_states:
             self.log(f"Rain detected via weather entity ({new}). Setting blockout.")
@@ -287,7 +289,7 @@ class GardenIrrigationWeather(hass.Hass):
         """
         if not self.weather_entity:
             return
-        
+
         state = self.get_state(self.weather_entity)
         self.log(f"Initial weather check: {state}")
         if state in self.rainy_states:
@@ -304,7 +306,7 @@ class GardenIrrigationWeather(hass.Hass):
                 if not self.is_rain_blocked():
                     self.log(f"Periodic check: Rain still active ({state}). Re-extending blockout.")
                     self.set_rain_blockout()
-        
+
         if self.rain_sensor:
             state = self.get_state(self.rain_sensor)
             is_raining = (state == "on") or (isinstance(state, (int, float)) and float(state) > 0)
@@ -333,11 +335,11 @@ class GardenIrrigationWeather(hass.Hass):
         """
         self.last_rain_time = datetime.now()
         self.rain_blocked_until = datetime.now() + timedelta(hours=self.rain_blockout_hours)
-        
+
         # Cancel existing blockout timer if any
         if self.rain_blockout_timer:
             self.cancel_timer(self.rain_blockout_timer)
-        
+
         # Schedule a callback to clear the blockout
         self.rain_blockout_timer = self.run_in(
             self.clear_rain_blockout_callback,
@@ -387,7 +389,7 @@ class GardenIrrigationWeather(hass.Hass):
 
         duration_state = self.get_state(self.duration)
         duration = float(duration_state) if duration_state else 0
-        
+
         if duration <= 0:
             return
 
@@ -405,6 +407,11 @@ class GardenIrrigationWeather(hass.Hass):
         if self.handles[valve_key]:
             if self.timer_running(self.handles[valve_key]):
                 self.cancel_timer(self.handles[valve_key])
+                
+        # clear emegency timer if it exists (precaution for manual triggers)
+        if self.safety_handles.get(valve_key):
+            if self.timer_running(self.safety_handles[valve_key]):
+                self.cancel_timer(self.safety_handles[valve_key])
 
         self.remaining_seconds[valve_key] = int(duration * 60)
 
@@ -420,7 +427,16 @@ class GardenIrrigationWeather(hass.Hass):
             valve_key=valve_key,
             is_auto_sequence=is_auto_sequence
         )
-        self.log(f"Valve {valve_key} ON. Sequence-Mode: {is_auto_sequence}")
+        
+        # independent safety timer calls after time + 5min
+        self.safety_handles[valve_key] = self.run_in(
+            self.safety_emergency_shutdown,
+            int((duration + 5) * 60),
+            valve_key=valve_key
+        )
+        
+        self.log(f"Valve {valve_key} ON. Sequence-Mode: {is_auto_sequence} (Safety Watchdog aktiv).")
+
 
     def stop_irrigation_callback(self, kwargs):
         """Stops the valve and checks if next one in sequence should start
@@ -458,6 +474,15 @@ class GardenIrrigationWeather(hass.Hass):
 
                 self.log(f"Updated hydrated_level after complete sequence finish: +{water_added:.1f}mm -> {self.hydrated_level:.1f}mm")
 
+    def safety_emergency_shutdown(self, kwargs):
+        """Emergency shutdown callback if valve is still on after expected duration + 5min (potential failure case)
+        """
+        valve_key = kwargs['valve_key']
+        if self.valves.get(valve_key) and self.get_state(self.valves[valve_key]) == "on":
+            self.log(f"CRITICAL WATER SAFETY EXCEEDED for {valve_key}! Hard forcing shutdown now.", level="WARNING")
+            self.sequence_active = False
+            self.stop_irrigation(valve_key)
+
     def stop_irrigation(self, valve_key):
         """Cleanup timer, turn off hardware and reset sensors
         """
@@ -465,6 +490,12 @@ class GardenIrrigationWeather(hass.Hass):
             if self.timer_running(self.handles[valve_key]):
                 self.cancel_timer(self.handles[valve_key])
             self.handles[valve_key] = None
+
+        # precautionary cleanup of safety timer in case of manual stop or early sequence stop
+        if self.safety_handles.get(valve_key):
+            if self.timer_running(self.safety_handles[valve_key]):
+                self.cancel_timer(self.safety_handles[valve_key])
+            self.safety_handles[valve_key] = None
 
         self.remaining_seconds[valve_key] = 0
 
