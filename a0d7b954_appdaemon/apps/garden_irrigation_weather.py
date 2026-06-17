@@ -224,20 +224,23 @@ class GardenIrrigationWeather(hass.Hass):
         """
         forecast_list = []
         try:
-            # FIX: Using 'target' parameter for the weather entity to resolve HA API restrictions
+            # FIX: Use return_response=True and pass entity_id directly to match your working WeatherMonitor app
             response = self.call_service(
                 "weather/get_forecasts",
-                target={"entity_id": self.weather_entity},
+                entity_id=self.weather_entity,
                 type="daily",
-                return_result=True
+                return_response=True
             )
         except Exception as e:
             self.log(f"Debug: Service call failed, trying fallback. Error: {e}")
             response = None
 
-        # Validate and extract data from the get_forecasts response
-        if isinstance(response, dict) and self.weather_entity in response:
-            forecast_list = response[self.weather_entity].get("forecast", [])
+        # Process response using the exact nested structure proven working in your monitor
+        if isinstance(response, dict) and 'result' in response:
+            result = response['result']
+            if isinstance(result, dict) and 'response' in result:
+                weather_data = result['response'].get(self.weather_entity, {})
+                forecast_list = weather_data.get('forecast', [])
 
         # Fallback to entity attributes if service response didn't yield results
         if not forecast_list:
