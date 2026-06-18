@@ -257,7 +257,7 @@ garden_irrigation_weather:
   start_sequence_2: input_datetime.irrigation_start_2
   sensor_remaining_1: input_number.irrigation_resttime_v1
   sensor_remaining_2: input_number.irrigation_resttime_v2
-  sensor_weather: weather.forecast_home
+  weather_entity: weather.forecast_home
   hydrated_level_entity: input_number.hydrade_level
   hydrated_level_max: 100
   hydrated_level_min: -100
