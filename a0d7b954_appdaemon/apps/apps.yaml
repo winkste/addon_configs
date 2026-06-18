@@ -259,9 +259,9 @@ garden_irrigation_weather:
   sensor_remaining_2: input_number.irrigation_resttime_v2
   weather_entity: weather.forecast_home
   hydrated_level_entity: input_number.hydrade_level
-  hydrated_level_max: 100
-  hydrated_level_min: -100
-  water_consumption_per_day: 5.0
+  hydrated_level_max: 30
+  hydrated_level_min: -50
+  water_consumption_per_day: 6.0
   water_per_minute: 0.7
 # -----------------------------------------------------
 # Alarm controller
