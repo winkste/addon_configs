@@ -1,7 +1,7 @@
 """
 AppDaemon Class: NeoCombinedTemp
 Author: AI Collaborator
-Version: 1.1
+Version: 1.2
 
 Description:
     A sophisticated lighting controller that manages GU10 RGBW/White groups based on:
@@ -12,7 +12,8 @@ Description:
 Functionality:
     - From Sunset to 22:00: Light is in 'Ambient Mode' (dimmed).
     - If Motion is detected: Light brightens. When motion stops, it dims back to Ambient or turns off (if after 22:00).
-    - Color Temp: Updated every time the light is triggered, based on the current temperature reading.
+    - Color Temp: Updated dynamically. Inverted logic: cold weather triggers cozy warm light, warm weather triggers crisp cool light.
+    - Matter Stability (Staggered Execution): Automatically expands light groups and spaces out individual commands by 150ms to prevent network packet drops and CHIP Timeout errors.
 
 Args:
     sensor (str): Entity ID of the motion sensor (binary_sensor).
@@ -22,16 +23,16 @@ Args:
     sunset_offset (int): Minutes relative to sunset to start ambient mode (default: -15).
     brightness_motion (int): Brightness level (0-255) for motion events (default: 255).
     brightness_ambi (int): Brightness level (0-255) for ambient mode (default: 125).
-    cold_kelvin (int): Kelvin value for the 'cold' end of the spectrum (default: 6500).
-    warm_kelvin (int): Kelvin value for the 'warm' end of the spectrum (default: 2700).
-    min_temp (float): Temperature value corresponding to cold_kelvin (default: 0.0).
-    max_temp (float): Temperature value corresponding to warm_kelvin (default: 25.0).
+    cold_kelvin (int): Kelvin value for crisp cool light (default: 6500).
+    warm_kelvin (int): Kelvin value for cozy warm light (default: 2700).
+    min_temp (float): Low temperature boundary where cozy warm light maximizes (default: 0.0).
+    max_temp (float): High temperature boundary where crisp cool light maximizes (default: 25.0).
 """
 
 import appdaemon.plugins.hass.hassapi as hass
 
 class NeoCombinedTemp(hass.Hass):
-    """Combined controller for motion, ambient, and temperature-based light automation."""
+    """Combined controller for motion, ambient, and temperature-based light automation with Matter stability fixes."""
 
     def initialize(self):
         """Initialize the App and subscribe to state changes and schedules."""
@@ -82,13 +83,13 @@ class NeoCombinedTemp(hass.Hass):
         """Handle motion detection."""
         self.log(f"Motion detected on {entity}")
         if self.sun_down():
-            # schedule the light state change to avoid long-running listener
+            # Schedule the light state change to avoid long-running listener
             self.run_in(self._run_apply_state, 0, motion=True)
 
     def motion_off_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion timeout."""
         self.log(f"Motion cleared on {entity} (timeout reached)")
-        # schedule the light state change to avoid long-running listener
+        # Schedule the light state change to avoid long-running listener
         self.run_in(self._run_apply_state, 0, motion=False)
 
     def sunset_callback(self, kwargs):
@@ -124,7 +125,7 @@ class NeoCombinedTemp(hass.Hass):
         """Handle temperature changes and refresh color if active."""
         self.log(f"Temperature sensor updated: {entity} -> {new}")
         if self.ambi_active or (self.motion_sensor and self.get_state(self.motion_sensor) == "on"):
-            # schedule refresh so callbacks remain short
+            # Schedule refresh so callbacks remain short
             current_motion = (self.motion_sensor and self.get_state(self.motion_sensor) == "on")
             self.run_in(self._run_apply_state, 0, motion=current_motion)
 
@@ -137,11 +138,11 @@ class NeoCombinedTemp(hass.Hass):
 
         if motion:
             # High brightness for motion
-            self.log(f"Setting {self.entity_ctrl} to Motion Brightness.")
+            self.log(f"Setting {self.entity_ctrl} to Motion Brightness ({self.brightness_motion}) @ {kelvin}K.")
             self._internal_turn_on(brightness=self.brightness_motion, kelvin=kelvin)
         elif self.ambi_active:
             # Return to dimmed ambient brightness
-            self.log(f"Setting {self.entity_ctrl} to Ambient Brightness.")
+            self.log(f"Setting {self.entity_ctrl} to Ambient Brightness ({self.brightness_ambi}) @ {kelvin}K.")
             self._internal_turn_on(brightness=self.brightness_ambi, kelvin=kelvin)
         else:
             if self.manual_override:
@@ -152,7 +153,7 @@ class NeoCombinedTemp(hass.Hass):
             self._internal_turn_off()
 
     def calculate_kelvin(self):
-        """Calculate color temperature based on the temperature sensor reading."""
+        """Calculate color temperature. Inverted logic: warm when cold, cold when hot."""
         temp_val = None
         if self.temp_sensor:
             state = self.get_state(self.temp_sensor)
@@ -162,59 +163,93 @@ class NeoCombinedTemp(hass.Hass):
                 self.log(f"Warning: Could not parse temperature '{state}'. Using default.")
 
         if temp_val is None:
-            return self.cold_kelvin
+            return self.warm_kelvin  # Default fallback safe cozy light
 
-        # Linear mapping of temperature to Kelvin
+        # Hard boundaries
         if temp_val <= self.min_temp:
-            return self.cold_kelvin
+            return self.warm_kelvin  # Freezing cold outside -> Maximum cozy warm light (e.g. 2700K)
         if temp_val >= self.max_temp:
-            return self.warm_kelvin
+            return self.cold_kelvin  # Boiling hot outside -> Maximum crisp cool light (e.g. 6500K)
 
-        # Interpolation logic
         range_temp = self.max_temp - self.min_temp
         if range_temp == 0:
-            self.log("min_temp and max_temp are equal; using cold_kelvin fallback.")
-            return self.cold_kelvin
+            self.log("min_temp and max_temp are equal; using warm_kelvin fallback.")
+            return self.warm_kelvin
 
+        # Inverted linear interpolation logic
         ratio = (temp_val - self.min_temp) / range_temp
-        target_kelvin = int(self.cold_kelvin + (self.warm_kelvin - self.cold_kelvin) * ratio)
+        target_kelvin = int(self.warm_kelvin + (self.cold_kelvin - self.warm_kelvin) * ratio)
 
-        self.log(f"Temp: {temp_val}°C -> Color: {target_kelvin}K")
+        self.log(f"Temp: {temp_val}°C -> Color Matrix Output: {target_kelvin}K")
         return target_kelvin
 
+    def _get_entities_to_control(self):
+        """Resolve light groups into individual entities to enable staggered commands for Matter stability."""
+        members = self.get_state(self.entity_ctrl, attribute="entity_id")
+        if isinstance(members, list):
+            return members
+        return [self.entity_ctrl]
+
     def _internal_turn_on(self, **kwargs):
+        """Turn on lights using a staggered/stacked delay loop to prevent Matter command drops."""
         self._internal_action = True
-        try:
-            self.turn_on(self.entity_ctrl, **kwargs)
-        finally:
-            self.run_in(self._clear_internal_action, 0)
+        entities = self._get_entities_to_control()
+        
+        delay = 0.0
+        for entity in entities:
+            # Injecting staggered timers to offset the load on the Wi-Fi router
+            self.run_in(self._staggered_turn_on_executor, delay, entity=entity, kwargs=kwargs)
+            delay += 0.15  # 150 milliseconds gap between each bulb execution
+            
+        # Clear the internal action flag after the final timer is dispatched
+        self.run_in(self._clear_internal_action, delay)
+
+    def _staggered_turn_on_executor(self, timer_kwargs):
+        """Directly sends the Home Assistant turn_on service call to a single bulb."""
+        entity = timer_kwargs["entity"]
+        call_params = timer_kwargs["kwargs"]
+        self.turn_on(entity, **call_params)
 
     def _internal_turn_off(self):
+        """Turn off lights using a staggered/stacked delay loop to stabilize Matter networking."""
         self._internal_action = True
-        try:
-            self.turn_off(self.entity_ctrl)
-        finally:
-            self.run_in(self._clear_internal_action, 0)
+        entities = self._get_entities_to_control()
+        
+        delay = 0.0
+        for entity in entities:
+            # Injecting staggered timers to prevent simultaneous mDNS / multicast rushes
+            self.run_in(self._staggered_turn_off_executor, delay, entity=entity)
+            delay += 0.15  # 150 milliseconds gap between each bulb execution
+            
+        # Clear the internal action flag after the final timer is dispatched
+        self.run_in(self._clear_internal_action, delay)
+
+    def _staggered_turn_off_executor(self, timer_kwargs):
+        """Directly sends the Home Assistant turn_off service call to a single bulb."""
+        entity = timer_kwargs["entity"]
+        self.turn_off(entity)
 
     def _clear_internal_action(self, kwargs):
+        """Reset internal flag to allow the app to resume parsing physical user interactions."""
         self._internal_action = False
 
     def entity_state_callback(self, entity, attribute, old, new, kwargs):
+        """Intercept state changes to detect if a human manually overrode the lights."""
         if self._internal_action:
             return
 
         if old == "off" and new == "on":
             self.manual_override = True
-            self.log(f"Manual override enabled for {entity}")
+            self.log(f"Manual override enabled. Detected manual switch on: {entity}")
         elif old == "on" and new == "off":
             if self.manual_override:
                 self.manual_override = False
-                self.log(f"Manual override cleared for {entity}")
+                self.log(f"Manual override cleared. Detected manual switch off: {entity}")
 
     def _run_apply_state(self, kwargs):
-        """Scheduled wrapper to call `apply_light_state` off the listener thread."""
+        """Scheduled wrapper to call `apply_light_state` safely off the listener thread."""
         motion = kwargs.get("motion", False)
         try:
             self.apply_light_state(motion=motion)
         except Exception as e:
-            self.log(f"Error in scheduled apply_light_state: {e}", level="ERROR")
+            self.log(f"Error in scheduled apply_light_state execution loop: {e}", level="ERROR")
