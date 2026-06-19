@@ -183,20 +183,11 @@ neo_hall_ground:
   entity_ctrl: light.dev407
 
 # Garden terrace ambient and motion controller
-neo_garden_terrace:
-  module: neo_combined
-  class: NeoCombined
-  sensor: binary_sensor.shellyblumo1_1_bewegung
-  entity_ctrl: light.glas_house_lights
-  sunset_offset: 0
-
-# Garden terrace ambient and motion controller with temperature sensor
 #neo_garden_terrace:
-#  module: neo_combined_temp
-#  class: NeoCombinedTemp
+#  module: neo_combined
+#  class: NeoCombined
 #  sensor: binary_sensor.shellyblumo1_1_bewegung
 #  entity_ctrl: light.glas_house_lights
-#  temp_sensor: sensor.shellybluht1_1_temperatur
 #  sunset_offset: 0
 
 # Garden terrace ambient and motion controller
@@ -207,12 +198,24 @@ neo_garden_terrace:
 #  entity_ctrl: light.dev50_r7
 
 # -----------------------------------------------------
+# Neo Combined Controller with temperature sensor
+# -----------------------------------------------------
+# Garden terrace ambient and motion controller with temperature sensor
+neo_garden_terrace:
+  module: neo_combined_temp
+  class: NeoCombinedTemp
+  sensor: binary_sensor.shellyblumo1_1_bewegung
+  entity_ctrl: light.glas_house_lights
+  temp_sensor: sensor.shellybluht1_1_temperatur
+  sunset_offset: 0
+
+# -----------------------------------------------------
 # Weather Monitor
 # -----------------------------------------------------
-weather_monitor:
-  module: weather_monitor
-  class: WeatherMonitor
-  weather_entity: weather.forecast_home  # <-- Hier deine Entität eintragen
+#weather_monitor:
+#  module: weather_monitor
+#  class: WeatherMonitor
+#  weather_entity: weather.forecast_home  # <-- Hier deine Entität eintragen
 # -----------------------------------------------------
 # Daylight controller
 # -----------------------------------------------------
@@ -225,19 +228,19 @@ weather_monitor:
 # -----------------------------------------------------
 # Garden irrigation controller
 # -----------------------------------------------------
-garden_irrigation:
-  module: garden_irrigation
-  class: GardenIrrigation
-  valve_1: switch.shellypro2_1_2
-  valve_2: switch.shellypro2_1_3
-  input_1: binary_sensor.shellypro2_1_1_eingang_0
-  input_2: binary_sensor.shellypro2_1_1_eingang_1
-  mode_entity: input_select.irrigation_mode
-  duration_entity: input_number.irrigation_duration
-  start_sequence_1: input_datetime.irrigation_start_1
-  start_sequence_2: input_datetime.irrigation_start_2
-  sensor_remaining_1: input_number.irrigation_resttime_v1
-  sensor_remaining_2: input_number.irrigation_resttime_v2
+#garden_irrigation:
+#  module: garden_irrigation
+#  class: GardenIrrigation
+#  valve_1: switch.shellypro2_1_2
+#  valve_2: switch.shellypro2_1_3
+#  input_1: binary_sensor.shellypro2_1_1_eingang_0
+#  input_2: binary_sensor.shellypro2_1_1_eingang_1
+#  mode_entity: input_select.irrigation_mode
+#  duration_entity: input_number.irrigation_duration
+#  start_sequence_1: input_datetime.irrigation_start_1
+#  start_sequence_2: input_datetime.irrigation_start_2
+#  sensor_remaining_1: input_number.irrigation_resttime_v1
+#  sensor_remaining_2: input_number.irrigation_resttime_v2
 
 # -----------------------------------------------------
 # Garden irrigation controller with weather monitoring
@@ -245,10 +248,10 @@ garden_irrigation:
 garden_irrigation_weather:
   module: garden_irrigation_weather
   class: GardenIrrigationWeather
-  #valve_1: switch.shellypro2_1_2
-  #valve_2: switch.shellypro2_1_3
-  valve_1: input_boolean.dummy_ventil_1
-  valve_2: input_boolean.dummy_ventil_2
+  valve_1: switch.shellypro2_1_2
+  valve_2: switch.shellypro2_1_3
+  #valve_1: input_boolean.dummy_ventil_1
+  #valve_2: input_boolean.dummy_ventil_2
   input_1: binary_sensor.shellypro2_1_1_eingang_0
   input_2: binary_sensor.shellypro2_1_1_eingang_1
   mode_entity: input_select.irrigation_mode
