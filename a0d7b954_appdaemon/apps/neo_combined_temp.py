@@ -83,7 +83,8 @@ class NeoCombinedTemp(hass.Hass):
     def motion_on_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion detection."""
         self.log(f"Motion detected on {entity}")
-        if self.sun_down():
+        #if self.sun_down(): temporary disable sun check
+        if True:
             # Schedule the light state change to avoid long-running listener
             self.run_in(self._run_apply_state, 0, motion=True)
 
