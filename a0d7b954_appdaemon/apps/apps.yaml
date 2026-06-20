@@ -205,7 +205,13 @@ neo_garden_terrace:
   module: neo_combined_temp
   class: NeoCombinedTemp
   sensor: binary_sensor.shellyblumo1_1_bewegung
-  entity_ctrl: light.glas_house_lights
+  entity_ctrl:
+    - light.h600d_1
+    - light.h600d_2
+    - light.h600d_3
+    - light.h600d_4
+    - light.h600d_5
+    - light.h600d_6
   temp_sensor: sensor.shellybluht1_1_temperatur
   sunset_offset: 0
 
