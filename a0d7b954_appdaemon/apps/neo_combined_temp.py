@@ -88,7 +88,7 @@ class NeoCombinedTemp(hass.Hass):
         """Handle motion detection."""
         self.log(f"Motion detected on {entity}")
         # Check if sunset rules apply (or bypass if testing)
-        if self.sun_down() or getattr(self, "_bypass_sunset_test", False) or True: # Added temporary test true
+        if self.sun_down() or getattr(self, "_bypass_sunset_test", False):
             self.run_in(self._run_apply_state, 0, motion=True)
 
     def motion_off_callback(self, entity, attribute, old, new, kwargs):
