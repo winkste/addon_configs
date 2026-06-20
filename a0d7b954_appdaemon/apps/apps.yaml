@@ -214,7 +214,7 @@ neo_garden_terrace:
     - light.h600d_6
   temp_sensor: sensor.shellybluht1_1_temperatur
   sunset_offset: 0
-  _bypass_sunset_test: true
+  _bypass_sunset_test: false
 
 # -----------------------------------------------------
 # Weather Monitor
