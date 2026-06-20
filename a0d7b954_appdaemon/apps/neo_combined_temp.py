@@ -186,10 +186,17 @@ class NeoCombinedTemp(hass.Hass):
         return target_kelvin
 
     def _get_entities_to_control(self):
-        """Resolve light groups into individual entities to enable staggered commands for Matter stability."""
+        """Resolve entity_ctrl into individual entities, supporting both lists and single group entities."""
+        # IF it's already a list (from apps.yaml), return it directly
+        if isinstance(self.entity_ctrl, list):
+            return self.entity_ctrl
+            
+        # IF it's a single string, check if it's a group with sub-entities
         members = self.get_state(self.entity_ctrl, attribute="entity_id")
         if isinstance(members, list):
             return members
+            
+        # Fallback: it's just a single entity string
         return [self.entity_ctrl]
 
     def _internal_turn_on(self, **kwargs):
@@ -199,12 +206,11 @@ class NeoCombinedTemp(hass.Hass):
         
         delay = 0.0
         for entity in entities:
-            # Injecting staggered timers to offset the load on the Wi-Fi router
             self.run_in(self._staggered_turn_on_executor, delay, entity=entity, kwargs=kwargs)
             delay += 0.15  # 150 milliseconds gap between each bulb execution
             
-        # Clear the internal action flag after the final timer is dispatched
-        self.run_in(self._clear_internal_action, delay)
+        # CRITICAL FIX: Schedule the reset to happen EXACTLY after the last staggered command is fired
+        self.run_in(self._clear_internal_action, delay + 0.05)
 
     def _staggered_turn_on_executor(self, timer_kwargs):
         """Directly sends the Home Assistant turn_on service call to a single bulb."""
@@ -219,12 +225,11 @@ class NeoCombinedTemp(hass.Hass):
         
         delay = 0.0
         for entity in entities:
-            # Injecting staggered timers to prevent simultaneous mDNS / multicast rushes
             self.run_in(self._staggered_turn_off_executor, delay, entity=entity)
             delay += 0.15  # 150 milliseconds gap between each bulb execution
             
-        # Clear the internal action flag after the final timer is dispatched
-        self.run_in(self._clear_internal_action, delay)
+        # CRITICAL FIX: Schedule the reset to happen EXACTLY after the last staggered command is fired
+        self.run_in(self._clear_internal_action, delay + 0.05)
 
     def _staggered_turn_off_executor(self, timer_kwargs):
         """Directly sends the Home Assistant turn_off service call to a single bulb."""
