@@ -1,7 +1,7 @@
 """
 AppDaemon Class: NeoCombinedTemp
 Author: AI Collaborator
-Version: 1.2
+Version: 1.3
 
 Description:
     A sophisticated lighting controller that manages GU10 RGBW/White groups based on:
@@ -14,6 +14,7 @@ Functionality:
     - If Motion is detected: Light brightens. When motion stops, it dims back to Ambient or turns off (if after 22:00).
     - Color Temp: Updated dynamically. Inverted logic: cold weather triggers cozy warm light, warm weather triggers crisp cool light.
     - Matter Stability (Staggered Execution): Automatically expands light groups and spaces out individual commands by 150ms to prevent network packet drops and CHIP Timeout errors.
+    - HA Compatibility Fix: Uses modern 'color_temp_kelvin' service parameter instead of deprecated 'kelvin'.
 
 Args:
     sensor (str): Entity ID of the motion sensor (binary_sensor).
@@ -139,11 +140,11 @@ class NeoCombinedTemp(hass.Hass):
         if motion:
             # High brightness for motion
             self.log(f"Setting {self.entity_ctrl} to Motion Brightness ({self.brightness_motion}) @ {kelvin}K.")
-            self._internal_turn_on(brightness=self.brightness_motion, kelvin=kelvin)
+            self._internal_turn_on(brightness=self.brightness_motion, color_temp_kelvin=kelvin)
         elif self.ambi_active:
             # Return to dimmed ambient brightness
             self.log(f"Setting {self.entity_ctrl} to Ambient Brightness ({self.brightness_ambi}) @ {kelvin}K.")
-            self._internal_turn_on(brightness=self.brightness_ambi, kelvin=kelvin)
+            self._internal_turn_on(brightness=self.brightness_ambi, color_temp_kelvin=kelvin)
         else:
             if self.manual_override:
                 self.log(f"Manual override active; leaving {self.entity_ctrl} on.")
