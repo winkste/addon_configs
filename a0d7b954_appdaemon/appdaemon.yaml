@@ -16,12 +16,6 @@ hadashboard:
 
 logs:
   main_log:
-    filename: appdaemon.log
-    log_generations: 3
-    log_size: 1000000
+    filename: STDOUT
   error_log:
-    filename: error.log
-    log_generations: 3
-    log_size: 1000000
-  access_log:
-    filename: access.log
+    filename: STDERR
