@@ -198,17 +198,17 @@ neo_hall_ground:
 #  entity_ctrl: light.dev50_r7
 
 # -----------------------------------------------------
-# Neo Combined Controller with temperature sensor
+# Govee Combined Controller
 # -----------------------------------------------------
-# Garden terrace ambient and motion controller with temperature sensor
 neo_garden_terrace:
-  module: neo_combined_temp
-  class: NeoCombinedTemp
+  module: govee_combined
+  class: GoveeCombined
   sensor: binary_sensor.shellyblumo1_1_bewegung
-  entity_ctrl: light.glas_house_lights 
-  temp_sensor: sensor.shellybluht1_1_temperatur
-  sunset_offset: 0
-  _bypass_sunset_test: false
+  entity_ctrl: light.glas_house_lights
+  off_delay: 60
+  brightness_motion: 255
+  brightness_ambi: 25
+  sunset_offset: -15
 
 # -----------------------------------------------------
 # Weather Monitor
