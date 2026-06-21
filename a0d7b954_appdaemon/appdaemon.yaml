@@ -1,9 +1,9 @@
 ---
 appdaemon:
-  latitude: 52.379189
-  longitude: 4.899431
-  elevation: 2
-  time_zone: Europe/Amsterdam
+  latitude: 52.6255
+  longitude: 10.0827
+  elevation: 40
+  time_zone: Europe/Berlin
   plugins:
     HASS:
       type: hass
@@ -13,3 +13,15 @@ http:
 admin:
 api:
 hadashboard:
+
+logs:
+  main_log:
+    filename: /root/addon_configs/a0d7b954_appdaemon/appdaemon.log
+    log_generations: 3
+    log_size: 1000000
+  error_log:
+    filename: /root/addon_configs/a0d7b954_appdaemon/error.log
+    log_generations: 3
+    log_size: 1000000
+  access_log:
+    filename: /root/addon_configs/a0d7b954_appdaemon/access.log
