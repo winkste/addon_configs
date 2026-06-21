@@ -16,12 +16,12 @@ hadashboard:
 
 logs:
   main_log:
-    filename: /root/addon_configs/a0d7b954_appdaemon/appdaemon.log
+    filename: appdaemon.log
     log_generations: 3
     log_size: 1000000
   error_log:
-    filename: /root/addon_configs/a0d7b954_appdaemon/error.log
+    filename: error.log
     log_generations: 3
     log_size: 1000000
   access_log:
-    filename: /root/addon_configs/a0d7b954_appdaemon/access.log
+    filename: access.log
