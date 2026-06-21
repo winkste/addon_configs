@@ -1,7 +1,7 @@
 """
 AppDaemon Class: NeoCombinedTemp
 Author: AI Collaborator
-Version: 1.7
+Version: 1.8
 
 Description:
     A sophisticated lighting controller that manages GU10 RGBW/White groups based on:
@@ -9,18 +9,16 @@ Description:
     2. Ambient (Sunset): Maintains a base level of light from sunset until a fixed time (22:00).
     3. Temperature: Dynamically maps light color (Kelvin) based on an external temperature sensor.
 
-Functionality:
-    - From Sunset to 22:00: Light is in 'Ambient Mode' (dimmed).
-    - If Motion is detected: Light brightens. When motion stops, it dims back to Ambient or turns off (if after 22:00).
-    - Solstice & Daytime Safety: Double-checks HA sun state to prevent daytime triggers and solstice lockups.
-    - Robust Group Override: Only detects manual overrides on the actual controlled entity/group, ignoring slow asynchronous child-bulb state updates from Matter.
+Fixes:
+    - Removes volatile boot-time sun checks that caused stuck ambient states on restart.
+    - Locks the temperature callback so it CANNOT turn lights on if they are currently off.
 """
 
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 
 class NeoCombinedTemp(hass.Hass):
-    """Combined controller with strict daytime enforcement and group-safe manual override detection."""
+    """Combined controller with strict daytime enforcement and temperature trigger protection."""
 
     def initialize(self):
         """Initialize the App and subscribe to state changes and schedules."""
@@ -39,15 +37,11 @@ class NeoCombinedTemp(hass.Hass):
         self.min_temp = self.args.get("min_temp", 0.0)
         self.max_temp = self.args.get("max_temp", 25.0)
 
-        # Runtime variables
+        # Runtime variables - Always start fresh and clean!
         self.ambi_timer = None
         self.ambi_active = False
         self.manual_override = False
         self._internal_action = False
-
-        # Protection against AppDaemon restarts during evening ambient time
-        if self._is_real_sun_down() and self.get_now_time() < datetime.time(22, 0, 0):
-            self.ambi_active = True
 
         # Register Motion Callbacks
         if self.motion_sensor:
@@ -62,7 +56,7 @@ class NeoCombinedTemp(hass.Hass):
         else:
             self.log("No temp_sensor specified. Temperature-based color updates disabled.")
 
-        # Register Entity State Callback (Only track the MAIN controlled entity to prevent child-matter-bulb race conditions)
+        # Register Entity State Callback
         if self.entity_ctrl:
             if isinstance(self.entity_ctrl, list):
                 for entity in self.entity_ctrl:
@@ -75,15 +69,12 @@ class NeoCombinedTemp(hass.Hass):
             self.error("No entity_ctrl specified. The app has nothing to control.")
 
     def _is_real_sun_down(self):
-        """Hard validation check against the real Home Assistant sun state to prevent daytime glitches."""
+        """Hard validation check against the real Home Assistant sun state."""
         ha_sun_state = self.get_state("sun.sun")
-        if ha_sun_state == "below_horizon":
-            return True
-        return False
+        return ha_sun_state == "below_horizon"
 
     def motion_on_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion detection."""
-        # Absolute Daytime Protection: If sun is up AND bypass is false -> Block execution completely!
         if not self._is_real_sun_down() and not getattr(self, "_bypass_sunset_test", False):
             return
 
@@ -129,11 +120,14 @@ class NeoCombinedTemp(hass.Hass):
             self._internal_turn_off()
 
     def temperature_callback(self, entity, attribute, old, new, kwargs):
-        """Handle temperature changes and refresh color if active."""
-        if not self.ambi_active and (self.motion_sensor and self.get_state(self.motion_sensor) == "off"):
+        """Handle temperature changes. Never turns lights ON by itself."""
+        # RADIKALER SCHUTZ: Wenn die gesteuerte Entität/Gruppe aktuell AUS ist, abbrechen!
+        if self.get_state(self.entity_ctrl) == "off":
             return
 
+        # Nur aktualisieren, wenn wir uns im aktiven Zeitfenster befinden
         if self.ambi_active or (self.motion_sensor and self.get_state(self.motion_sensor) == "on"):
+            self.log(f"Temperature sensor updated while lights active: {entity} -> {new}")
             current_motion = (self.motion_sensor and self.get_state(self.motion_sensor) == "on")
             self.run_in(self._run_apply_state, 0, motion=current_motion)
 
@@ -149,7 +143,7 @@ class NeoCombinedTemp(hass.Hass):
             self._internal_turn_on(brightness=self.brightness_motion, color_temp_kelvin=kelvin)
         elif self.ambi_active:
             self.log(f"Setting {self.entity_ctrl} to Ambient Brightness ({self.brightness_ambi}) @ {kelvin}K.")
-            self._internal_on_ambient(brightness=self.brightness_ambi, color_temp_kelvin=kelvin)
+            self._internal_turn_on(brightness=self.brightness_ambi, color_temp_kelvin=kelvin)
         else:
             if self.manual_override:
                 self.log(f"Manual override active; leaving {self.entity_ctrl} on.")
@@ -197,7 +191,7 @@ class NeoCombinedTemp(hass.Hass):
         return [self.entity_ctrl]
 
     def _internal_turn_on(self, **kwargs):
-        """Turn on lights using a staggered/stacked delay loop."""
+        """Turn on lights using a staggered/stacked delay loop and hold shield."""
         self._internal_action = True
         entities = self._get_entities_to_control()
         
@@ -206,26 +200,15 @@ class NeoCombinedTemp(hass.Hass):
             self.run_in(self._staggered_turn_on_executor, delay, entity=entity, kwargs=kwargs)
             delay += 0.15
             
-        self.run_in(self._clear_internal_action, delay + 0.5)
-
-    def _internal_on_ambient(self, **kwargs):
-        """Turn on ambient lighting safely."""
-        self._internal_action = True
-        entities = self._get_entities_to_control()
-        
-        delay = 0.0
-        for entity in entities:
-            self.run_in(self._staggered_turn_on_executor, delay, entity=entity, kwargs=kwargs)
-            delay += 0.15
-            
-        self.run_in(self._clear_internal_action, delay + 0.5)
+        # 5 seconds safety shield to let Matter state feedback settle
+        self.run_in(self._clear_internal_action, 5.0)
 
     def _staggered_turn_on_executor(self, timer_kwargs):
         """Directly sends the Home Assistant turn_on service call to a single bulb."""
         self.turn_on(timer_kwargs["entity"], **timer_kwargs["kwargs"])
 
     def _internal_turn_off(self):
-        """Turn off lights using a staggered/stacked delay loop."""
+        """Turn off lights using a staggered/stacked delay loop and hold shield."""
         self._internal_action = True
         entities = self._get_entities_to_control()
         
@@ -234,7 +217,7 @@ class NeoCombinedTemp(hass.Hass):
             self.run_in(self._staggered_turn_off_executor, delay, entity=entity)
             delay += 0.15
             
-        self.run_in(self._clear_internal_action, delay + 0.5)
+        self.run_in(self._clear_internal_action, 5.0)
 
     def _staggered_turn_off_executor(self, timer_kwargs):
         """Directly sends the Home Assistant turn_off service call to a single bulb."""
@@ -249,7 +232,6 @@ class NeoCombinedTemp(hass.Hass):
         if self._internal_action:
             return
 
-        # CRITICAL FIX: If we control a group, ignore state changes of individual child bulbs (like light.h600d_3)
         if entity != self.entity_ctrl and not isinstance(self.entity_ctrl, list):
             return
 
