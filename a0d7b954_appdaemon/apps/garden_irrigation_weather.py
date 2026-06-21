@@ -120,6 +120,17 @@ class GardenIrrigationWeather(hass.Hass):
         # Daily reset of hydration check flag at midnight
         self.run_daily(self.reset_daily_check, "23:30:00")
 
+        # CRITICAL SAFETY CHECK ON BOOT / RESTART:
+        # If AppDaemon reboots while a valve is physisch open, force it close immediately
+        # to prevent infinite flooding, since all memory timers were wiped.
+        self.log("Performing startup valve safety check...")
+        for key, entity in self.valves.items():
+            if entity:
+                current_hardware_state = self.get_state(entity)
+                if current_hardware_state == "on":
+                    self.log(f"WARNING: Valve {key} ({entity}) was found ON during AppDaemon startup! Forcing emergency shutdown.", level="WARNING")
+                    self.stop_irrigation(key)
+
         # Initial schedule setup
         self.reschedule_callback(None, None, None, None, None)
         self.log("Weather-aware Sequential Garden Irrigation initialized.")
