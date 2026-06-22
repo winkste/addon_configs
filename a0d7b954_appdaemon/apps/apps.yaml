@@ -209,6 +209,7 @@ neo_garden_terrace:
   brightness_motion: 255
   brightness_ambi: 25
   sunset_offset: -15
+  manual_bypass: input_boolean.terrace_automatik_stop
 
 # -----------------------------------------------------
 # Weather Monitor
