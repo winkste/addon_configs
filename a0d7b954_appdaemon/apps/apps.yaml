@@ -200,15 +200,26 @@ neo_hall_ground:
 # -----------------------------------------------------
 # Govee Combined Controller
 # -----------------------------------------------------
-neo_garden_terrace:
+neo_garden_terrace_floor:
   module: govee_combined
   class: GoveeCombined
   sensor: binary_sensor.shellyblumo1_1_bewegung
   entity_ctrl: light.glas_house_lights
   off_delay: 60
   brightness_motion: 255
-  brightness_ambi: 25
+  brightness_ambi: 10
   sunset_offset: -15
+  manual_bypass: input_boolean.terrace_automatik_stop
+
+neo_garden_terrace_wall:
+  module: govee_combined
+  class: GoveeCombined
+  sensor: binary_sensor.shellyblumo1_1_bewegung
+  entity_ctrl: light.glas_house_lights_wall
+  off_delay: 60
+  brightness_motion: 255
+  brightness_ambi: 20
+  sunset_offset: -10
   manual_bypass: input_boolean.terrace_automatik_stop
 
 # -----------------------------------------------------
@@ -227,48 +238,10 @@ weather_monitor:
 #  class: DayLightRunner
 #  entity_ctrl:
 #    - light.dev50_r2
-# -----------------------------------------------------
-# Garden irrigation controller
-# -----------------------------------------------------
-#garden_irrigation:
-#  module: garden_irrigation
-#  class: GardenIrrigation
-#  valve_1: switch.shellypro2_1_2
-#  valve_2: switch.shellypro2_1_3
-#  input_1: binary_sensor.shellypro2_1_1_eingang_0
-#  input_2: binary_sensor.shellypro2_1_1_eingang_1
-#  mode_entity: input_select.irrigation_mode
-#  duration_entity: input_number.irrigation_duration
-#  start_sequence_1: input_datetime.irrigation_start_1
-#  start_sequence_2: input_datetime.irrigation_start_2
-#  sensor_remaining_1: input_number.irrigation_resttime_v1
-#  sensor_remaining_2: input_number.irrigation_resttime_v2
 
 # -----------------------------------------------------
 # Garden irrigation controller with weather monitoring
 # -----------------------------------------------------
-#garden_irrigation_weather:
-#  module: garden_irrigation_weather
-#  class: GardenIrrigationWeather
-#  valve_1: switch.shellypro2_1_2
-#  valve_2: switch.shellypro2_1_3
-  #valve_1: input_boolean.dummy_ventil_1
-  #valve_2: input_boolean.dummy_ventil_2
-#  input_1: binary_sensor.shellypro2_1_1_eingang_0
-#  input_2: binary_sensor.shellypro2_1_1_eingang_1
-#  mode_entity: input_select.irrigation_mode
-#  duration_entity: input_number.irrigation_duration
-#  start_sequence_1: input_datetime.irrigation_start_1
-#  start_sequence_2: input_datetime.irrigation_start_2
-#  sensor_remaining_1: input_number.irrigation_resttime_v1
-#  sensor_remaining_2: input_number.irrigation_resttime_v2
-#  weather_entity: weather.forecast_home
-#  hydrated_level_entity: input_number.hydrade_level
-#  hydrated_level_max: 30
-#  hydrated_level_min: -50
-#  water_consumption_per_day: 10.0
-#  water_per_minute: 0.55
-
 garden_irrigation_weather:
   module: garden_irrigation_state_based
   class: GardenIrrigationStateBased

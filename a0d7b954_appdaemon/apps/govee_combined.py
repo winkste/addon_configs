@@ -56,10 +56,17 @@ class GoveeCombined(hass.Hass):
         ha_sun_state = self.get_state("sun.sun")
         return ha_sun_state == "below_horizon"
 
+    def _is_ambient_mode_active(self):
+        """Checks if the ambient mode is currently active."""
+        return self.ambi_active
+
     def motion_on_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion detection."""
         if self._is_bypass_active():
             self.log("Manual bypass active. Ignoring motion event.")
+            return
+        if self._is_ambient_mode_active():
+            self.log("Ambient Mode active. Ignoring motion event.")
             return
 
         if not self._is_real_sun_down() and not getattr(self, "_bypass_sunset_test", False):
@@ -70,12 +77,17 @@ class GoveeCombined(hass.Hass):
 
     def motion_off_callback(self, entity, attribute, old, new, kwargs):
         """Handle motion timeout."""
-        if self._is_bypass_active():
-            return
-
+        # check first if sun is down to avoid messaging during daytime motion
         if not self._is_real_sun_down() and not getattr(self, "_bypass_sunset_test", False):
             return
 
+        if self._is_bypass_active():
+            self.log("Manual bypass active. Ignoring motion event.")
+            return
+        if self._is_ambient_mode_active():
+            self.log("Ambient Mode active. Ignoring motion event.")
+            return
+        
         self.log(f"Motion cleared on {entity} (timeout reached)")
         self.run_in(self._run_apply_state, 0, motion=False)
 
@@ -86,16 +98,17 @@ class GoveeCombined(hass.Hass):
             self.ambi_active = False
             return
 
-        self.log("Sunset triggered: Starting Ambient Mode.")
+        self.log("Sunset triggered")
         self.ambi_active = True
-
-        if not self._is_bypass_active() and self.get_state(self.motion_sensor) == "off":
-            self.apply_light_state(motion=False)
-
         if self.ambi_timer:
             self.cancel_timer(self.ambi_timer)
-
         self.ambi_timer = self.run_at(self.end_ambient_callback, "22:00:00")
+
+        if self._is_bypass_active():
+            self.log("Manual bypass active. Skipping Ambient Mode activation.")
+            return
+
+        self.apply_light_state(motion=False)
 
     def end_ambient_callback(self, kwargs):
         """End ambient mode and turn off light if no motion is active."""
@@ -106,20 +119,19 @@ class GoveeCombined(hass.Hass):
         if self._is_bypass_active():
             return
 
-        if self.motion_sensor and self.get_state(self.motion_sensor) == "off":
-            self._internal_turn_off()
+        self._internal_turn_off()
 
     def apply_light_state(self, motion=False):
         """Determine the correct brightness based on current state."""
         if not self.entity_ctrl or self._is_bypass_active():
             return
 
-        if motion:
-            self.log(f"Setting {self.entity_ctrl} to Motion Brightness ({self.brightness_motion}).")
-            self._internal_turn_on(brightness=self.brightness_motion)
-        elif self.ambi_active:
+        if self.ambi_active:
             self.log(f"Setting {self.entity_ctrl} to Ambient Brightness ({self.brightness_ambi}).")
             self._internal_turn_on(brightness=self.brightness_ambi)
+        elif motion:
+            self.log(f"Setting {self.entity_ctrl} to Motion Brightness ({self.brightness_motion}).")
+            self._internal_turn_on(brightness=self.brightness_motion)
         else:
             self.log(f"No motion and Ambient Mode inactive. Turning off {self.entity_ctrl}.")
             self._internal_turn_off()
