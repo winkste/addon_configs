@@ -91,7 +91,7 @@ class NeoCombinedTemp(hass.Hass):
 
     def sunset_callback(self, kwargs):
         """Handle sunset event to start ambient mode, with solstice protection."""
-        if self.get_now_time() >= datetime.time(22, 0, 0):
+        if self.time() >= datetime.time(22, 0, 0):
             self.log("Sunset triggered AFTER 22:00. Skipping Ambient Mode activation for tonight.")
             self.ambi_active = False
             return

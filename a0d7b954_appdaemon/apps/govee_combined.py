@@ -87,13 +87,13 @@ class GoveeCombined(hass.Hass):
         if self._is_ambient_mode_active():
             self.log("Ambient Mode active. Ignoring motion event.")
             return
-        
+
         self.log(f"Motion cleared on {entity} (timeout reached)")
         self.run_in(self._run_apply_state, 0, motion=False)
 
     def sunset_callback(self, kwargs):
         """Handle sunset event to start ambient mode, with solstice protection."""
-        if self.get_now_time() >= datetime.time(22, 0, 0):
+        if self.time() >= datetime.time(22, 0, 0):
             self.log("Sunset triggered AFTER 22:00. Skipping Ambient Mode activation for tonight.")
             self.ambi_active = False
             return
