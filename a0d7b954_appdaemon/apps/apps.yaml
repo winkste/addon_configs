@@ -21,7 +21,9 @@ battery_monitor:
   class: BatteryMonitor
   threshold: 20
   check_time: "05:50:00"
-  exclude: []
+  exclude:
+    # Solar battery, often empty in the morning during winter
+    - sensor.byd_battery_box_premium_hv_ladezustand
 
 # -----------------------------------------------------
 # Orientation Light Controlling

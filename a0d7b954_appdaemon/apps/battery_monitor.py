@@ -1,14 +1,15 @@
 """
 AppDaemon Class: BatteryMonitor
 Author: AI Collaborator
-Version: 1.0
+Version: 1.1
 
 Description:
     Daily battery level check for all battery powered devices:
     1. Discovery: Finds all sensors with device_class "battery" automatically
        (numeric sensors in % and binary low battery sensors).
     2. Threshold: Collects every sensor below the configured threshold.
-    3. Notification: Creates one persistent notification with the sorted list.
+    3. Notification: Creates one persistent notification with the sorted list,
+       each entry including the Home Assistant area of the sensor.
        If all batteries are ok, an old notification is dismissed.
     4. Exclude (Optional): A list of entities that are never reported.
 """
@@ -82,8 +83,19 @@ class BatteryMonitor(hass.Hass):
         }
 
     def _get_name(self, entity, state):
-        """Return the friendly name of an entity, fallback to the entity id."""
-        return state.get("attributes", {}).get("friendly_name", entity)
+        """Return the friendly name of an entity including its area, if assigned."""
+        name = state.get("attributes", {}).get("friendly_name", entity)
+        area = self._get_area(entity)
+        if area:
+            return f"{name} ({area})"
+        return name
+
+    def _get_area(self, entity):
+        """Return the area name of an entity from Home Assistant, None if not assigned."""
+        area = self.render_template(f"{{{{ area_name('{entity}') }}}}")
+        if not area or area == "None":
+            return None
+        return area
 
     def _send_notification(self, low_batteries):
         """Create or replace the persistent notification with the low battery list."""
