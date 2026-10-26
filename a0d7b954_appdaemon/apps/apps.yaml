@@ -14,6 +14,15 @@ sun_state_check:
 #  class: HeartBeat
 #  period: 30
 
+# Daily battery level check, reports low batteries
+# as persistent notification
+battery_monitor:
+  module: battery_monitor
+  class: BatteryMonitor
+  threshold: 20
+  check_time: "05:50:00"
+  exclude: []
+
 # -----------------------------------------------------
 # Orientation Light Controlling
 # -----------------------------------------------------
@@ -83,13 +92,6 @@ ambi_light_living:
   class: AmbientLight
   offset: -18
   entity_ctrl: switch.plugsg3_7
-
-# Ambient light floor garden lights
-#ambi_light_garden7:
-#  module: ambient_light
-#  class: AmbientLight
-#  offset: -21
-#  entity_ctrl: light.dev50_r7
 
 # Ambient light wall barbeque house front lights
 ambi_light_garden5:
@@ -182,25 +184,10 @@ neo_hall_ground:
   sensor: binary_sensor.dev407_switch1
   entity_ctrl: light.dev407
 
-# Garden terrace ambient and motion controller
-#neo_garden_terrace:
-#  module: neo_combined
-#  class: NeoCombined
-#  sensor: binary_sensor.shellyblumo1_1_bewegung
-#  entity_ctrl: light.glas_house_lights
-#  sunset_offset: 0
-
-# Garden terrace ambient and motion controller
-#neo_garden_terrace_alt:
-#  module: neo_combined
-#  class: NeoCombined
-#  sensor: binary_sensor.shellyblumo1_1_bewegung
-#  entity_ctrl: light.dev50_r7
-
 # -----------------------------------------------------
 # Govee Combined Controller
 # -----------------------------------------------------
-neo_garden_terrace_floor:
+govee_garden_terrace_floor:
   module: govee_combined
   class: GoveeCombined
   sensor: binary_sensor.shellyblumo1_1_bewegung
@@ -211,7 +198,7 @@ neo_garden_terrace_floor:
   sunset_offset: -15
   manual_bypass: input_boolean.terrace_automatik_stop
 
-neo_garden_terrace_wall:
+govee_garden_terrace_wall:
   module: govee_combined
   class: GoveeCombined
   sensor: binary_sensor.shellyblumo1_1_bewegung
@@ -221,7 +208,6 @@ neo_garden_terrace_wall:
   brightness_ambi: 20
   sunset_offset: -10
   manual_bypass: input_boolean.terrace_automatik_stop
-
 # -----------------------------------------------------
 # Weather Monitor
 # -----------------------------------------------------
@@ -229,16 +215,6 @@ weather_monitor:
   module: weather_monitor
   class: WeatherMonitor
   weather_entity: weather.forecast_home  # <-- Hier deine Entität eintragen
-# -----------------------------------------------------
-# Daylight controller
-# -----------------------------------------------------
-# obsolete - Garden fountain - disabled due to winter time
-#daylight_control:
-#  module: daylight_runner
-#  class: DayLightRunner
-#  entity_ctrl:
-#    - light.dev50_r2
-
 # -----------------------------------------------------
 # Garden irrigation controller with weather monitoring
 # -----------------------------------------------------
