@@ -97,6 +97,8 @@ class OrientLightNew(hass.Hass):
 
 
     def timer_timeout(self, kwargs):
+        # timer has fired, handle is no longer valid for cancel_timer()
+        self.timer_handle = None
         self.turn_off_entity()
     
 

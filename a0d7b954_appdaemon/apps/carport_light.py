@@ -41,10 +41,13 @@ class CarportLight(hass.Hass):
                     delay = self.args["delay"]
                 else:
                     delay = 60
-                self.cancel_timer(self.handle)
+                if self.handle is not None:
+                    self.cancel_timer(self.handle)
                 self.handle = self.run_in(self.light_off, delay)
 
     def light_off(self, kwargs):
+        # timer has fired, handle is no longer valid for cancel_timer()
+        self.handle = None
         if "entity_ctrl" in self.args:
             for entity in self.args['entity_ctrl']:
                 self.log("Turning {} off".format(entity))
