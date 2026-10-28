@@ -26,6 +26,31 @@ battery_monitor:
     - sensor.byd_battery_box_premium_hv_ladezustand
 
 # -----------------------------------------------------
+# Detector alarm notifications
+# -----------------------------------------------------
+# Water leakage detectors
+water_alarm:
+  module: alarm_notifier
+  class: WaterAlarm
+  sensor:
+    - binary_sensor.shellyflood_1_flood
+  unavailable_delay: 3600
+  # alarm as critical alert, clear and unavailable as normal push
+  critical_push:
+    - notify.mobile_app_iphone_8_winkste_2
+
+# Smoke detectors
+smoke_alarm:
+  module: alarm_notifier
+  class: SmokeAlarm
+  sensor:
+    - binary_sensor.shellysmoke_hwr_smoke
+  unavailable_delay: 3600
+  # alarm as critical alert, clear and unavailable as normal push
+  critical_push:
+    - notify.mobile_app_iphone_8_winkste_2
+
+# -----------------------------------------------------
 # Orientation Light Controlling
 # -----------------------------------------------------
 # Carport orientation light
