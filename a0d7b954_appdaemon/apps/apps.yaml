@@ -187,6 +187,12 @@ light_dining_room:
   offset: 20
   entity_ctrl: switch.lidl_relay4
 
+light_dining_room2:
+  module: ambient_light
+  class: AmbientLight
+  offset: 20
+  entity_ctrl: switch.plugsg3_8
+
 # -----------------------------------------------------
 # Neo Combined Controller
 # -----------------------------------------------------
@@ -324,6 +330,7 @@ switch_emergency:
     - switch.dev401_relay4
     # Kitchen entities
     - switch.lidl_relay4
+    - switch.plugsg3_8
     # Utility room entities
     - switch.lidl_relay6
     - light.shellyplusrgbwpm_device1_light_0
@@ -386,6 +393,7 @@ nightly_reset:
     - switch.dev401_relay4
     # Kitchen entities
     - switch.lidl_relay4
+    - switch.plugsg3_8
     # Utility room entities
     - switch.lidl_relay6
     - light.shellyplusrgbwpm_device1_light_0
