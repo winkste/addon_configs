@@ -105,7 +105,7 @@ orient_carp_inside:
 orient_util:
   module: orientation_light_new
   class: OrientLightNew
-  sensor: binary_sensor.sonoff_move1
+  sensor: binary_sensor.lidl_bewegung_02
   entity_ctrl: switch.lidl_relay6
   delay: 20
   sunrec: True
