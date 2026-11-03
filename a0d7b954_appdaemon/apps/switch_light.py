@@ -19,7 +19,9 @@ light       :______|------------------|_____________________|-------------------
 Args:
 
 switch:       switch object that send one or two on/off sequences
-entity_ctrl:  entities to control, can be a light, script, 
+zha_device:   alternative to switch: ZHA device id of a remote that fires
+               zha_event with the commands "on" and "off"
+entity_ctrl:  entities to control, can be a light, script,
                scene or anything else that can be turned on/off
 
 
@@ -27,6 +29,8 @@ Release Notes
 
 Version 1.0:
   Initial version of app
+Version 1.1:
+  Support ZHA remotes that only fire zha_event (argument zha_device)
 """
 
 from appdaemon.appdaemon import AppDaemon
@@ -42,16 +46,31 @@ class SwitchLight(hass.Hass):
         self.switch = None
         self.entity_ctrl = None
         
-        if "switch" not in self.args:
-            self.log("switch_light - no switch detected...")
+        if "switch" not in self.args and "zha_device" not in self.args:
+            self.log("switch_light - no switch or zha device detected...")
         elif "entity_ctrl" not in self.args:
             self.log("switch_light - no entity control detected...")
         else:
-            self.switch = self.args["switch"]
             self.entity_ctrl = self.args["entity_ctrl"]
-            self.listen_state(self._switch_on_callback, self.switch, new = "on")
-            self.listen_state(self._switch_off_callback, self.switch, new = "off")
+            if "zha_device" in self.args:
+                self.switch = self.args["zha_device"]
+                self.listen_event(self._zha_event_callback, "zha_event",
+                                  device_id = self.switch)
+            else:
+                self.switch = self.args["switch"]
+                self.listen_state(self._switch_on_callback, self.switch, new = "on")
+                self.listen_state(self._switch_off_callback, self.switch, new = "off")
             self.log("switch_light - controller initialized...")
+
+    def _zha_event_callback(self, _event_name, data, _kwargs):
+        """On zha_event callback function of the remote
+        """
+        command = data.get("command")
+        self.log(f"{self.switch} fired command: {command}")
+        if command == "on":
+            self._turn_entities_on()
+        elif command == "off":
+            self._turn_entities_off()
 
     def _switch_on_callback(self, _entity, _attribute, old, new, _kwargs):
         """On switch "on" callback function

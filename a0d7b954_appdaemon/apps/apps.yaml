@@ -346,7 +346,8 @@ switch_emergency:
 switch_light_work_ctr:
   module: switch_light
   class: SwitchLight
-  switch: switch.lidl_button1
+  # lidl_button1 (TS004F) only fires zha_event, no switch entity
+  zha_device: adf51d593bb23451d328f69708a1a99c
   entity_ctrl:
     - switch.lidl_relay1
 
